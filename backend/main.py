@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.routes.health import router as health_router
 from backend.routes.asr import router as asr_router
+from backend.routes.gloss import router as gloss_router
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -46,6 +47,7 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(asr_router)
+app.include_router(gloss_router)
 
 # ---------------------------------------------------------------------------
 # Static mounts
