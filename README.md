@@ -20,9 +20,14 @@
 
 ## Setup
 
-```bash
+```powershell
 python -m venv venv
-venv\Scripts\activate          # Windows
+venv\Scripts\activate
+
+# On Windows (no MSVC / Rust build tools), install av and tokenizers with
+# pre-built wheels first, then the rest of the deps:
+pip install "av>=15" --only-binary :all:
+pip install "tokenizers>=0.21,<1" --only-binary :all:
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```

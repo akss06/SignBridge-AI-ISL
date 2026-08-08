@@ -1,7 +1,23 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-python-multipart==0.0.9
-faster-whisper==1.0.1
-spacy==3.7.4
-ffmpeg-python==0.2.0
+python-multipart>=0.0.9
 aiofiles==23.2.1
+
+# ASR
+# faster-whisper 1.2.1 requires av>=15 and tokenizers>=0.21 (pre-built wheels).
+# Install order matters on Windows (no MSVC/Rust): use --only-binary :all: for av and tokenizers.
+# See README for setup instructions.
+faster-whisper==1.2.1
+av>=15
+tokenizers>=0.21,<1
+ctranslate2>=4.0,<5
+onnxruntime>=1.14,<2
+
+# Gloss engine (Stage 3)
+spacy==3.7.4
+# After pip install, also run: python -m spacy download en_core_web_sm
+
+# Video assembly (Stage 5)
+# ffmpeg-python is a thin subprocess wrapper; ffmpeg binary must be on PATH
+# (or set FFMPEG_BIN env var). No C compilation required.
+ffmpeg-python==0.2.0

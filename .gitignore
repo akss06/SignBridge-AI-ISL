@@ -38,3 +38,6 @@ Thumbs.db
 
 # faster-whisper model cache
 model_cache/
+
+# Presentation slides
+slides/
