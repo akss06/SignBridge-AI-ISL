@@ -23,8 +23,8 @@ from faster_whisper import WhisperModel
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Model size — "base" by default; override via env var if needed
-WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")
+# Model size — "tiny" by default; override via env var if needed
+WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "tiny")
 
 # ffmpeg binary — assume PATH by default, allow explicit override
 FFMPEG_BIN: str = os.getenv("FFMPEG_BIN", "ffmpeg")

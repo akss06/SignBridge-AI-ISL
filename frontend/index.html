@@ -16,34 +16,99 @@
   </header>
 
   <main class="app-main">
-    <!-- Upload card (wired in Stage 6; placeholder in Stage 1) -->
-    <section class="card upload-card" id="upload-section">
-      <h2 class="card-title">Upload a file</h2>
-      <p class="card-hint">
-        Accepts <strong>.wav</strong>, <strong>.mp3</strong>, or
-        <strong>.mp4</strong> (audio track will be extracted from video).
-      </p>
-      <label class="file-drop" id="file-drop" for="file-input">
-        <span class="file-drop-icon">⬆</span>
-        <span class="file-drop-text">Click or drag a file here</span>
-        <input type="file" id="file-input" accept=".wav,.mp3,.mp4" hidden />
-      </label>
-      <div class="file-name-display" id="file-name-display">No file selected</div>
-      <button class="btn btn-primary" id="submit-btn" disabled>
-        Convert to ISL
-      </button>
-    </section>
 
-    <!-- Status / results area -->
-    <section class="card status-card" id="status-section">
-      <h2 class="card-title">Status</h2>
-      <div class="status-row" id="health-status">
-        <span class="status-dot" id="health-dot"></span>
-        <span id="health-label">Checking service…</span>
+    <!-- ── Left column: upload + status ── -->
+    <div class="left-col">
+
+      <section class="card upload-card">
+        <h2 class="card-title">Upload a file</h2>
+        <p class="card-hint">
+          Accepts <strong>.wav</strong>, <strong>.mp3</strong>, or
+          <strong>.mp4</strong> — audio track extracted automatically from video.
+        </p>
+
+        <label class="file-drop" id="file-drop" for="file-input">
+          <span class="file-drop-icon">⬆</span>
+          <span class="file-drop-text">Click or drag a file here</span>
+          <input type="file" id="file-input" accept=".wav,.mp3,.mp4" hidden />
+        </label>
+        <div class="file-name-display" id="file-name-display">No file selected</div>
+
+        <button class="btn btn-primary" id="submit-btn" disabled>
+          Convert to ISL
+        </button>
+      </section>
+
+      <!-- Service health -->
+      <section class="card health-card">
+        <div class="status-row" id="health-status">
+          <span class="status-dot" id="health-dot"></span>
+          <span id="health-label">Checking service…</span>
+        </div>
+      </section>
+
+      <!-- Loading state -->
+      <div class="loading-panel hidden" id="loading-panel">
+        <div class="spinner"></div>
+        <div class="loading-stages" id="loading-stages">
+          <span class="stage-step" id="step-asr">Transcribing audio…</span>
+          <span class="stage-step" id="step-gloss">Generating ISL gloss…</span>
+          <span class="stage-step" id="step-lookup">Matching clips…</span>
+          <span class="stage-step" id="step-assembly">Assembling video…</span>
+        </div>
       </div>
-      <!-- Result panels populated in Stage 6 -->
-      <div id="result-area" class="result-area hidden"></div>
-    </section>
+
+    </div>
+
+    <!-- ── Right column: results ── -->
+    <div class="right-col">
+
+      <!-- 0% coverage message -->
+      <div class="card error-card hidden" id="no-coverage-card">
+        <h2 class="card-title">No signs found</h2>
+        <p class="card-hint">
+          None of the words in this audio matched signs in the CISLR dataset.
+          Try a sentence with common everyday vocabulary.
+        </p>
+        <div class="transcript-box" id="no-coverage-transcript"></div>
+      </div>
+
+      <!-- Error card (pipeline error) -->
+      <div class="card error-card hidden" id="error-card">
+        <h2 class="card-title">Something went wrong</h2>
+        <p class="error-message" id="error-message"></p>
+      </div>
+
+      <!-- Results card -->
+      <div class="card results-card hidden" id="results-card">
+
+        <!-- Video player -->
+        <div class="video-wrapper">
+          <video id="isl-video" controls playsinline>
+            Your browser does not support video playback.
+          </video>
+        </div>
+
+        <!-- Coverage bar -->
+        <div class="coverage-row">
+          <span class="coverage-label">Sign coverage</span>
+          <div class="coverage-bar-track">
+            <div class="coverage-bar-fill" id="coverage-fill"></div>
+          </div>
+          <span class="coverage-pct" id="coverage-pct">0%</span>
+        </div>
+
+        <!-- Gloss chips -->
+        <div class="section-label">ISL Gloss</div>
+        <div class="gloss-area" id="gloss-area"></div>
+
+        <!-- Transcript -->
+        <div class="section-label">Transcript</div>
+        <div class="transcript-box" id="transcript-box"></div>
+
+      </div>
+
+    </div>
   </main>
 
   <footer class="app-footer">

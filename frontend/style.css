@@ -58,6 +58,13 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   flex: 1;
+  align-items: start;
+}
+
+.left-col, .right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* ---- Cards ---- */
@@ -153,9 +160,172 @@ body {
 .status-dot.ok    { background: #22c55e; }
 .status-dot.error { background: #ef4444; }
 
-/* ---- Result area (populated Stage 6) ---- */
-.result-area { margin-top: 1.25rem; }
 .hidden { display: none !important; }
+
+/* ---- Loading panel ---- */
+.loading-panel {
+  background: #112035;
+  border: 1px solid #1e3050;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #1e3050;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.stage-step {
+  font-size: 0.8rem;
+  color: #3a5070;
+  transition: color 0.2s;
+}
+
+.stage-step.active { color: #f59e0b; font-weight: 600; }
+.stage-step.done   { color: #22c55e; }
+
+/* ---- Error / no-coverage card ---- */
+.error-card { border-color: #2a1a1a; }
+.error-message {
+  font-size: 0.85rem;
+  color: #ef4444;
+  margin-top: 0.4rem;
+}
+
+/* ---- Results card ---- */
+.results-card { padding: 1.25rem; }
+
+/* Video */
+.video-wrapper {
+  background: #000;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.video-wrapper video {
+  width: 100%;
+  display: block;
+  max-height: 320px;
+}
+
+/* Coverage bar */
+.coverage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.coverage-label {
+  font-size: 0.78rem;
+  color: #7a8fa8;
+  white-space: nowrap;
+}
+
+.coverage-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #1e3050;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.coverage-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.coverage-bar-fill.cov-high { background: #22c55e; }
+.coverage-bar-fill.cov-mid  { background: #f59e0b; }
+.coverage-bar-fill.cov-low  { background: #ef4444; }
+
+.coverage-pct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #c8d6e8;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* Section labels */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a8fa8;
+  margin-bottom: 0.4rem;
+}
+
+/* Gloss chips */
+.gloss-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.gloss-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.gloss-chip {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: default;
+}
+
+.chip-matched {
+  background: #0e2d1a;
+  color: #4ade80;
+  border: 1px solid #1a4a2a;
+}
+
+.chip-dropped {
+  background: #1e1a10;
+  color: #78716c;
+  border: 1px solid #2a2416;
+  text-decoration: line-through;
+}
+
+/* Transcript box */
+.transcript-box {
+  font-size: 0.83rem;
+  color: #7a8fa8;
+  background: #0a1520;
+  border: 1px solid #1e3050;
+  border-radius: 5px;
+  padding: 0.6rem 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ---- Health card ---- */
+.health-card { padding: 0.75rem 1.5rem; }
 
 /* ---- Footer ---- */
 .app-footer {

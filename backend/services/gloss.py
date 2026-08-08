@@ -127,8 +127,10 @@ def _is_function_word(tok: Token) -> bool:
     if tok.pos_ in ("ADP", "PART") and text_l in _PREP_DROP:
         return True
 
-    # Punctuation, spaces
+    # Punctuation, spaces, possessive markers
     if tok.is_punct or tok.is_space:
+        return True
+    if tok.tag_ == "POS":   # possessive 's — no ISL sign
         return True
 
     return False
@@ -190,15 +192,17 @@ def _split_into_clauses(sent: Span) -> List[List[Token]]:
             if tok not in sub_clause_roots:
                 sub_clause_roots.append(tok)
 
-    # Collect each sub-clause as its subtree
-    for sub_root in sub_clause_roots:
-        subtree_idxs = {t.i for t in sub_root.subtree}
+    # Collect each sub-clause as its subtree.
+    # Process in left-to-right order; once a token is claimed it cannot
+    # appear in another clause — prevents duplication from overlapping subtrees.
+    for sub_root in sorted(sub_clause_roots, key=lambda t: t.i):
+        subtree_idxs = {t.i for t in sub_root.subtree} - used
         clause_tokens = [t for t in tokens if t.i in subtree_idxs]
         if clause_tokens:
             clauses.append(clause_tokens)
             used.update(subtree_idxs)
 
-    # Main clause = everything not claimed by a sub-clause
+    # Main clause = everything not claimed by any sub-clause
     main_clause = [t for t in tokens if t.i not in used]
     if main_clause:
         clauses.insert(0, main_clause)

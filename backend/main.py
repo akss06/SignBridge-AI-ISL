@@ -26,6 +26,7 @@ from backend.routes.asr import router as asr_router
 from backend.routes.gloss import router as gloss_router
 from backend.routes.lookup import router as lookup_router
 from backend.routes.assembly import router as assembly_router
+from backend.routes.pipeline import router as pipeline_router
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -57,6 +58,7 @@ app.include_router(asr_router)
 app.include_router(gloss_router)
 app.include_router(lookup_router)
 app.include_router(assembly_router)
+app.include_router(pipeline_router)
 
 # ---------------------------------------------------------------------------
 # Static mounts
