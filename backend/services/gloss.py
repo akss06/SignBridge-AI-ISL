@@ -45,8 +45,8 @@ def get_nlp() -> spacy.Language:
 # Drop-lists  (words with no standalone ISL sign)
 # ---------------------------------------------------------------------------
 
-# Articles
-_ARTICLES = {"a", "an", "the"}
+# Articles and possessive determiners (no standalone ISL sign)
+_ARTICLES = {"a", "an", "the", "my", "your", "his", "her", "its", "our", "their"}
 
 # Copula lemmas
 _COPULAS = {"be"}
@@ -88,8 +88,9 @@ _CLAUSE_DEP_LABELS = {
 # (clause-boundary function words with no standalone ISL sign)
 _CLAUSE_MARKER_DROP = {"cc", "mark"}
 
-# Negation words
-_NEG_WORDS = {"not", "n't", "never", "no", "nobody", "nothing",
+# Negation words — "no" excluded here; handled by dep_=="neg" to avoid
+# eating "no" when used as a standalone content word / determiner
+_NEG_WORDS = {"not", "n't", "never", "nobody", "nothing",
               "nowhere", "neither", "nor"}
 
 
@@ -134,7 +135,11 @@ def _is_function_word(tok: Token) -> bool:
 
 
 def _is_negation(tok: Token) -> bool:
-    return tok.dep_ == "neg" or tok.text.lower() in _NEG_WORDS
+    # "no" is only treated as negation when spaCy marks it dep_=="neg"
+    # (e.g. "no money" → det, not neg — kept as content word)
+    if tok.dep_ == "neg":
+        return True
+    return tok.text.lower() in _NEG_WORDS
 
 
 def _is_time_expression(tok: Token) -> bool:
@@ -182,12 +187,8 @@ def _split_into_clauses(sent: Span) -> List[List[Token]]:
     sub_clause_roots: List[Token] = []
     for tok in tokens:
         if tok.dep_ in _CLAUSE_DEP_LABELS and tok.head in tokens:
-            # The token itself might be a conjunction; the real clause root
-            # may be its head or a sibling.  Use the token's subtree root.
-            root = tok if tok.dep_ in ("advcl", "relcl", "ccomp",
-                                       "xcomp", "acl", "conj") else tok
-            if root not in sub_clause_roots:
-                sub_clause_roots.append(root)
+            if tok not in sub_clause_roots:
+                sub_clause_roots.append(tok)
 
     # Collect each sub-clause as its subtree
     for sub_root in sub_clause_roots:
@@ -213,11 +214,49 @@ def _split_into_clauses(sent: Span) -> List[List[Token]]:
 # Single-clause reordering → gloss tokens
 # ---------------------------------------------------------------------------
 
+def _reorder_adjectives(toks: List[Token], clause_set: set) -> List[Token]:
+    """
+    Within a list of tokens, move adjectival modifiers (amod dependents)
+    to immediately AFTER their head noun.
+
+    ISL places adjectives after the noun they modify — e.g. English
+    "red ball" becomes ISL gloss BALL RED.
+    (Adjective-after-noun order is documented across multiple ISL computational
+    linguistics and gloss-generation system papers; also consistent with the
+    SOV-language typology described in Zeshan 2000.)
+
+    Only reorders within the supplied token list; ignores amod links that
+    cross clause boundaries.
+    """
+    if len(toks) <= 1:
+        return toks
+
+    tok_set = {t.i for t in toks}
+    result: List[Token] = []
+    placed: set[int] = set()
+
+    for tok in toks:
+        if tok.i in placed:
+            continue
+        result.append(tok)
+        placed.add(tok.i)
+        # Append any amod children of this token that are also in this list
+        for child in tok.children:
+            if child.dep_ == "amod" and child.i in tok_set and child.i not in placed:
+                result.append(child)
+                placed.add(child.i)
+
+    return result
+
+
 def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
     """
     Reorder one clause's tokens into ISL gloss order:
         Time → Subject → Object → Verb
-    then drop function words and move negation to the end.
+    then:
+      - drop function words
+      - move adjectives after their head nouns (ISL adjective-after-noun order)
+      - append NEG marker at the end
 
     Returns a list of uppercase gloss strings.
     """
@@ -227,6 +266,8 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
     verb_toks:    List[Token] = []
     neg_found:    bool = False
     other_toks:   List[Token] = []
+
+    clause_set = {t.i for t in clause_tokens}
 
     for tok in clause_tokens:
         if _is_function_word(tok):
@@ -238,6 +279,9 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
         dep = tok.dep_
         pos = tok.pos_
 
+        # amod tokens are bucketed with their head noun's group so that
+        # _reorder_adjectives can place them immediately after the noun.
+        # We still need them in the bucket — do NOT skip them here.
         if _is_time_expression(tok):
             time_toks.append(tok)
         elif dep in ("nsubj", "nsubjpass"):
@@ -250,6 +294,11 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
             verb_toks.append(tok)
         else:
             other_toks.append(tok)
+
+    # Apply adjective-after-noun reordering within each nominal group
+    subject_toks = _reorder_adjectives(subject_toks, clause_set)
+    object_toks  = _reorder_adjectives(object_toks,  clause_set)
+    other_toks   = _reorder_adjectives(other_toks,   clause_set)
 
     # Assemble in ISL order: Time Subject Object Verb [NEG]
     ordered: List[Token] = (
