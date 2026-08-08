@@ -1,0 +1,167 @@
+/* =========================================================
+   SignBridge AI — Base stylesheet (Stage 1 skeleton)
+   Full visual polish applied in Stage 7.
+   ========================================================= */
+
+/* ---- Reset / base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: #0d1b2a;
+  color: #e8eaf0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header ---- */
+.app-header {
+  background: #0a1520;
+  border-bottom: 1px solid #1e3050;
+  padding: 1.25rem 2rem;
+}
+
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-mark { font-size: 1.5rem; color: #f59e0b; }
+
+.app-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #e8eaf0;
+}
+
+.accent { color: #f59e0b; }
+
+.app-tagline {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: #7a8fa8;
+}
+
+/* ---- Main layout ---- */
+.app-main {
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+/* ---- Cards ---- */
+.card {
+  background: #112035;
+  border: 1px solid #1e3050;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #c8d6e8;
+}
+
+.card-hint {
+  font-size: 0.83rem;
+  color: #7a8fa8;
+  margin-bottom: 1rem;
+}
+
+/* ---- File drop zone ---- */
+.file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 2px dashed #2a4060;
+  border-radius: 6px;
+  padding: 2rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.file-drop:hover { border-color: #f59e0b; }
+
+.file-drop-icon { font-size: 1.6rem; color: #7a8fa8; }
+.file-drop-text { font-size: 0.85rem; color: #7a8fa8; }
+
+.file-name-display {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: #7a8fa8;
+  min-height: 1.2em;
+  word-break: break-all;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1.4rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-primary {
+  background: #f59e0b;
+  color: #0d1b2a;
+}
+
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-primary:not(:disabled):hover { opacity: 0.85; }
+
+/* ---- Health status dot ---- */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #7a8fa8;   /* grey = checking */
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.status-dot.ok    { background: #22c55e; }
+.status-dot.error { background: #ef4444; }
+
+/* ---- Result area (populated Stage 6) ---- */
+.result-area { margin-top: 1.25rem; }
+.hidden { display: none !important; }
+
+/* ---- Footer ---- */
+.app-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #3a5070;
+  padding: 1rem;
+  border-top: 1px solid #1e3050;
+}

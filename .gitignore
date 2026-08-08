@@ -1,0 +1,40 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# FastAPI / Uvicorn
+*.log
+
+# Environment
+.env
+.env.*
+
+# Outputs (generated videos — large, not committed)
+outputs/
+
+# Temp / cache
+.cache/
+tmp/
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# faster-whisper model cache
+model_cache/

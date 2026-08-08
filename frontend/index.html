@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SignBridge AI</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <span class="logo-mark">◈</span>
+      <h1 class="app-title">SignBridge <span class="accent">AI</span></h1>
+      <p class="app-tagline">English audio / video → Indian Sign Language</p>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Upload card (wired in Stage 6; placeholder in Stage 1) -->
+    <section class="card upload-card" id="upload-section">
+      <h2 class="card-title">Upload a file</h2>
+      <p class="card-hint">
+        Accepts <strong>.wav</strong>, <strong>.mp3</strong>, or
+        <strong>.mp4</strong> (audio track will be extracted from video).
+      </p>
+      <label class="file-drop" id="file-drop" for="file-input">
+        <span class="file-drop-icon">⬆</span>
+        <span class="file-drop-text">Click or drag a file here</span>
+        <input type="file" id="file-input" accept=".wav,.mp3,.mp4" hidden />
+      </label>
+      <div class="file-name-display" id="file-name-display">No file selected</div>
+      <button class="btn btn-primary" id="submit-btn" disabled>
+        Convert to ISL
+      </button>
+    </section>
+
+    <!-- Status / results area -->
+    <section class="card status-card" id="status-section">
+      <h2 class="card-title">Status</h2>
+      <div class="status-row" id="health-status">
+        <span class="status-dot" id="health-dot"></span>
+        <span id="health-label">Checking service…</span>
+      </div>
+      <!-- Result panels populated in Stage 6 -->
+      <div id="result-area" class="result-area hidden"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    SignBridge AI — ISL Pipeline Demo
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
