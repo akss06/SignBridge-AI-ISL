@@ -216,35 +216,51 @@ def _split_into_clauses(sent: Span) -> List[List[Token]]:
 
 def _reorder_adjectives(toks: List[Token], clause_set: set) -> List[Token]:
     """
-    Within a list of tokens, move adjectival modifiers (amod dependents)
-    to immediately AFTER their head noun.
+    Within a list of tokens, move adjectival modifiers (amod) and compound
+    modifiers to immediately AFTER their head noun.
 
-    ISL places adjectives after the noun they modify — e.g. English
-    "red ball" becomes ISL gloss BALL RED.
-    (Adjective-after-noun order is documented across multiple ISL computational
-    linguistics and gloss-generation system papers; also consistent with the
-    SOV-language typology described in Zeshan 2000.)
+    ISL places modifiers after the noun they modify:
+      "red ball"    → BALL RED   (adjective after noun)
+      "video games" → GAME VIDEO (compound modifier after head noun)
+    (Documented across multiple ISL gloss-generation papers; consistent
+    with Zeshan 2000 SOV typology.)
 
-    Only reorders within the supplied token list; ignores amod links that
-    cross clause boundaries.
+    Only reorders within the supplied token list; cross-clause links ignored.
     """
     if len(toks) <= 1:
         return toks
 
     tok_set = {t.i for t in toks}
+
+    # Identify which tokens are modifiers of another token in this list
+    modifier_deps = {"amod", "compound"}
+    is_modifier = {
+        t.i for t in toks
+        if t.dep_ in modifier_deps and t.head.i in tok_set
+    }
+
     result: List[Token] = []
     placed: set[int] = set()
 
     for tok in toks:
         if tok.i in placed:
             continue
+        # Skip pure modifiers on first pass — they'll be placed after their head
+        if tok.i in is_modifier:
+            continue
+        # Place the head token
         result.append(tok)
         placed.add(tok.i)
-        # Append any amod children of this token that are also in this list
+        # Then place any modifier children immediately after (ISL order)
         for child in tok.children:
-            if child.dep_ == "amod" and child.i in tok_set and child.i not in placed:
+            if child.dep_ in modifier_deps and child.i in tok_set and child.i not in placed:
                 result.append(child)
                 placed.add(child.i)
+
+    # Fallback: place any modifiers that weren't attached (head was outside list)
+    for tok in toks:
+        if tok.i not in placed:
+            result.append(tok)
 
     return result
 
@@ -279,15 +295,23 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
         dep = tok.dep_
         pos = tok.pos_
 
-        # amod tokens are bucketed with their head noun's group so that
-        # _reorder_adjectives can place them immediately after the noun.
-        # We still need them in the bucket — do NOT skip them here.
         if _is_time_expression(tok):
             time_toks.append(tok)
         elif dep in ("nsubj", "nsubjpass"):
             subject_toks.append(tok)
         elif dep in ("dobj", "obj", "iobj", "pobj", "obl", "attr"):
             object_toks.append(tok)
+        elif dep in ("compound", "amod") and tok.head.i in clause_set:
+            # Compound modifiers (e.g. "video" in "video games") and adjectival
+            # modifiers (e.g. "tall" in "tall man") — bucket with their head noun
+            # so they stay in the same group for reordering.
+            head_dep = tok.head.dep_
+            if head_dep in ("nsubj", "nsubjpass"):
+                subject_toks.append(tok)
+            elif head_dep in ("dobj", "obj", "iobj", "pobj", "obl", "attr"):
+                object_toks.append(tok)
+            else:
+                other_toks.append(tok)
         elif pos in ("VERB", "AUX") and dep not in (
             "aux", "auxpass", "cop"
         ):
