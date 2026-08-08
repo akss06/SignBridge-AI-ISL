@@ -17,6 +17,7 @@ build/
 # Environment
 .env
 .env.*
+!.env.example
 
 # Outputs (generated videos — large, not committed)
 outputs/

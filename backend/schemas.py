@@ -14,7 +14,13 @@ from pydantic import BaseModel, Field
 
 class GlossToken(BaseModel):
     """A single gloss token produced by the grammar/gloss engine."""
-    token: str = Field(..., description="The sign label / gloss word")
+    token: str = Field(..., description="The sign label / gloss word (lemma, uppercase)")
+    surface: Optional[str] = Field(
+        None,
+        description="Original surface form of the word before lemmatization "
+                    "(uppercase). Used by clip lookup as a fallback when the "
+                    "lemma form is not in the vocab.",
+    )
     clip_path: Optional[str] = Field(
         None,
         description="Absolute or relative path to the matched CISLR clip, "

@@ -20,7 +20,7 @@ Output: list of SentenceResult objects (one per sentence in the input).
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import spacy
 from spacy.tokens import Doc, Span, Token
@@ -249,7 +249,7 @@ def _reorder_adjectives(toks: List[Token], clause_set: set) -> List[Token]:
     return result
 
 
-def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
+def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     """
     Reorder one clause's tokens into ISL gloss order:
         Time → Subject → Object → Verb
@@ -258,7 +258,7 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
       - move adjectives after their head nouns (ISL adjective-after-noun order)
       - append NEG marker at the end
 
-    Returns a list of uppercase gloss strings.
+    Returns a list of (lemma_upper, surface_upper) pairs.
     """
     time_toks:    List[Token] = []
     subject_toks: List[Token] = []
@@ -305,12 +305,18 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[str]:
         time_toks + subject_toks + object_toks + verb_toks + other_toks
     )
 
-    gloss = [tok.lemma_.upper() for tok in ordered]
+    # Return (lemma, surface) pairs so the caller can store both forms.
+    # Surface form is used by clip lookup as a fallback when the lemma
+    # doesn't match the vocab (e.g. "games" lemmatises to "game" but
+    # the vocab has "GAMES").
+    pairs: List[Tuple[str, str]] = [
+        (tok.lemma_.upper(), tok.text.upper()) for tok in ordered
+    ]
 
     if neg_found:
-        gloss.append("NOT")
+        pairs.append(("NOT", "NOT"))
 
-    return gloss
+    return pairs
 
 
 # ---------------------------------------------------------------------------
@@ -346,20 +352,25 @@ def text_to_gloss(transcript: str) -> List[SentenceResult]:
 
         clauses = _split_into_clauses(sent)
 
-        all_gloss: List[str] = []
+        all_pairs: List[Tuple[str, str]] = []
         for clause in clauses:
-            all_gloss.extend(_clause_to_gloss(clause))
+            all_pairs.extend(_clause_to_gloss(clause))
 
-        # Deduplicate consecutive identical tokens (artefact of clause overlap)
-        deduped: List[str] = []
-        for g in all_gloss:
-            if not deduped or g != deduped[-1]:
-                deduped.append(g)
+        # Deduplicate consecutive identical lemmas (artefact of clause overlap)
+        deduped: List[Tuple[str, str]] = []
+        for pair in all_pairs:
+            if not deduped or pair[0] != deduped[-1][0]:
+                deduped.append(pair)
 
         gloss_tokens = [
-            GlossToken(token=g, clip_path=None, matched=False)
-            for g in deduped
-            if g.strip()
+            GlossToken(
+                token=lemma,
+                surface=surface if surface != lemma else None,
+                clip_path=None,
+                matched=False,
+            )
+            for lemma, surface in deduped
+            if lemma.strip()
         ]
 
         results.append(SentenceResult(
