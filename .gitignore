@@ -19,7 +19,7 @@ build/
 .env.*
 !.env.example
 
-# Outputs (generated videos — large, not committed)
+# Outputs (generated videos ï¿½ large, not committed)
 outputs/
 
 # Temp / cache
@@ -42,3 +42,6 @@ model_cache/
 
 # Presentation slides
 slides/
+
+# Generated project docs
+*.pdf

@@ -15,10 +15,11 @@ Coverage = matched_tokens / total_tokens_attempted  (dropped tokens are
            included in the denominator — never inflated by excluding failures).
 
 Configuration (env vars):
-  ISL_VOCAB_PATH   — absolute path to isl_vocab_full.json
+  ISL_VOCAB_PATH   — absolute path to isl_vocab_trimmed.json (falls back to
+                     isl_vocab_full.json if a trimmed entry/file is missing)
   ISL_CLIPS_DIR    — absolute path to the normalised clips directory
-                     (used only as a fallback if normalized_path in the JSON
-                      is missing or the file doesn't exist there)
+                     (used only as a last-resort fallback if neither
+                      trimmed_path nor normalized_path in the JSON exist)
 """
 from __future__ import annotations
 
@@ -38,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 ISL_VOCAB_PATH: str = os.getenv(
     "ISL_VOCAB_PATH",
-    r"C:\Users\aksha\Desktop\asl project\data\isl_explore\isl_vocab_full.json",
+    r"C:\Users\aksha\Desktop\asl project\data\isl_explore\isl_vocab_trimmed.json",
 )
 
 ISL_CLIPS_DIR: str = os.getenv(
@@ -80,9 +81,15 @@ def _load_vocab() -> Dict[str, str]:
     clips_dir = Path(ISL_CLIPS_DIR)
 
     for phrase, entry in raw.items():
-        # Primary: use normalized_path from the JSON
-        clip_path = entry.get("normalized_path", "")
+        # Primary: trimmed_path (idle head/tail padding already removed by
+        # trim_clips.py) — falls back to the full-length normalized_path if
+        # the entry wasn't trimmed or the trimmed file is missing.
+        trimmed_path = entry.get("trimmed_path", "")
+        if trimmed_path and Path(trimmed_path).exists():
+            index[phrase.upper()] = trimmed_path
+            continue
 
+        clip_path = entry.get("normalized_path", "")
         if clip_path and Path(clip_path).exists():
             index[phrase.upper()] = clip_path
             continue
