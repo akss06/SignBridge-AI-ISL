@@ -35,6 +35,23 @@
         </label>
         <div class="file-name-display" id="file-name-display">No file selected</div>
 
+        <div class="input-divider"><span>or</span></div>
+
+        <div class="record-section">
+          <button class="btn btn-record" id="record-btn" type="button">
+            <span class="record-dot" id="record-dot"></span>
+            <span id="record-btn-label">Record audio</span>
+          </button>
+          <span class="record-timer hidden" id="record-timer">00:00</span>
+
+          <div class="record-preview hidden" id="record-preview">
+            <audio controls id="record-audio-preview"></audio>
+            <button class="btn-link" id="rerecord-btn" type="button">Re-record</button>
+          </div>
+
+          <p class="record-message hidden" id="record-message"></p>
+        </div>
+
         <button class="btn btn-primary" id="submit-btn" disabled>
           Convert to ISL
         </button>

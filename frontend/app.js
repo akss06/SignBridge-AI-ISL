@@ -8,6 +8,8 @@
  *   4. Animate a simple loading state while processing.
  *   5. Render results: video player, coverage bar, gloss chips, transcript.
  *   6. Handle 0%-coverage and error states gracefully.
+ *   7. Microphone recording as an alternative to file upload (capture +
+ *      preview only for now — see the recording section at the bottom).
  */
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
@@ -216,4 +218,127 @@ submitBtn.addEventListener('click', async () => {
   } finally {
     setLoading(false);
   }
+});
+
+
+// ── Microphone recording (Stage 1: capture + preview only, not wired to
+//    the pipeline yet — that happens in Stage 2) ──────────────────────────────
+
+const recordBtn          = document.getElementById('record-btn');
+const recordBtnLabel     = document.getElementById('record-btn-label');
+const recordTimer        = document.getElementById('record-timer');
+const recordPreview      = document.getElementById('record-preview');
+const recordAudioPreview = document.getElementById('record-audio-preview');
+const rerecordBtn        = document.getElementById('rerecord-btn');
+const recordMessage      = document.getElementById('record-message');
+
+let mediaRecorder      = null;
+let recordedChunks     = [];
+let recordingStartTime = null;
+let timerInterval      = null;
+let recordedBlob       = null; // will be handed to the pipeline submit in Stage 2
+
+function pickMimeType() {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+  for (const type of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return ''; // let the browser choose its own default (e.g. audio/mp4 on Safari)
+}
+
+function showRecordMessage(text) {
+  recordMessage.textContent = text;
+  recordMessage.classList.remove('hidden');
+}
+
+function clearRecordMessage() {
+  recordMessage.textContent = '';
+  recordMessage.classList.add('hidden');
+}
+
+function formatElapsed(totalSeconds) {
+  const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+  const s = String(totalSeconds % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function startTimer() {
+  recordingStartTime = Date.now();
+  recordTimer.textContent = '00:00';
+  recordTimer.classList.remove('hidden');
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    recordTimer.textContent = formatElapsed(elapsed);
+  }, 250);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  recordTimer.classList.add('hidden');
+}
+
+async function startRecording() {
+  clearRecordMessage();
+
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    showRecordMessage('Recording is not supported in this browser — use file upload instead.');
+    return;
+  }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    showRecordMessage('Microphone access denied. Allow microphone access to record, or use file upload instead.');
+    return;
+  }
+
+  const mimeType = pickMimeType();
+  mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+  recordedChunks = [];
+
+  mediaRecorder.addEventListener('dataavailable', (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  });
+
+  mediaRecorder.addEventListener('stop', () => {
+    stream.getTracks().forEach((track) => track.stop());
+    stopTimer();
+
+    recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+
+    recordAudioPreview.src = URL.createObjectURL(recordedBlob);
+    recordPreview.classList.remove('hidden');
+
+    recordBtn.classList.remove('recording');
+    recordBtnLabel.textContent = 'Record audio';
+  });
+
+  mediaRecorder.start();
+  recordBtn.classList.add('recording');
+  recordBtnLabel.textContent = 'Stop recording';
+  startTimer();
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+
+recordBtn.addEventListener('click', () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+});
+
+rerecordBtn.addEventListener('click', () => {
+  recordedBlob = null;
+  recordPreview.classList.add('hidden');
+  recordAudioPreview.removeAttribute('src');
+  clearRecordMessage();
+  startRecording();
 });
