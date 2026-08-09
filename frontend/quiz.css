@@ -1,0 +1,124 @@
+/* SignBridge AI — Quiz mode stylesheet (standalone, matches main app palette) */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: #0d1b2a;
+  color: #e8eaf0;
+  min-height: 100vh;
+}
+
+.app-header {
+  background: #0a1520;
+  border-bottom: 1px solid #1e3050;
+  padding: 1.25rem 2rem;
+}
+
+.header-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-mark { font-size: 1.5rem; color: #f59e0b; }
+.app-title { font-size: 1.4rem; font-weight: 700; color: #e8eaf0; }
+.accent { color: #f59e0b; }
+.app-tagline { margin-left: auto; font-size: 0.82rem; color: #7a8fa8; }
+
+.quiz-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.panel {
+  background: #112035;
+  border: 1px solid #1e3050;
+  border-radius: 10px;
+  padding: 1.75rem;
+}
+
+.hidden { display: none !important; }
+
+h2 { margin-bottom: 1rem; }
+
+.topic-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.topic-btn {
+  background: #1e3050;
+  border: 1px solid #2a4060;
+  color: #e8eaf0;
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.topic-btn:hover, .topic-btn:focus-visible { border-color: #f59e0b; }
+
+.quiz-progress {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: #7a8fa8;
+  margin-bottom: 1rem;
+}
+
+.clip-video {
+  width: 100%;
+  max-height: 320px;
+  background: #0a1520;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.option-btn {
+  background: #1e3050;
+  border: 1px solid #2a4060;
+  color: #e8eaf0;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.option-btn:hover:not(:disabled) { border-color: #f59e0b; }
+.option-btn:disabled { cursor: default; }
+
+.option-btn.correct { background: #22c55e; border-color: #22c55e; color: #0d1b2a; }
+.option-btn.incorrect { background: #ef4444; border-color: #ef4444; color: #0d1b2a; }
+
+.feedback {
+  min-height: 1.5rem;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+.feedback.correct { color: #22c55e; }
+.feedback.incorrect { color: #ef4444; }
+
+.next-btn {
+  margin-top: 1.25rem;
+  background: #f59e0b;
+  border: none;
+  color: #0d1b2a;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .options-grid { grid-template-columns: 1fr; }
+}

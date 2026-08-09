@@ -1,0 +1,28 @@
+{
+  "topics": [
+    {
+      "id": "demo",
+      "name": "Demo Topic",
+      "questions": [
+        {
+          "id": "q1",
+          "clip_phrase": "NAME",
+          "correct_answer": "Name",
+          "distractors": ["Goodbye", "Thank you", "Sorry"]
+        },
+        {
+          "id": "q2",
+          "clip_phrase": "WATER",
+          "correct_answer": "Water",
+          "distractors": ["Milk", "Food", "Tea"]
+        },
+        {
+          "id": "q3",
+          "clip_phrase": "SHE",
+          "correct_answer": "She",
+          "distractors": ["He", "They", "We"]
+        }
+      ]
+    }
+  ]
+}

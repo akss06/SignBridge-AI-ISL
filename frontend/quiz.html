@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SignBridge AI — Quiz</title>
+  <link rel="stylesheet" href="/static/quiz.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <span class="logo-mark">&#x1F91F;</span>
+      <span class="app-title">SignBridge <span class="accent">AI</span></span>
+      <span class="app-tagline">Quiz mode</span>
+    </div>
+  </header>
+
+  <main class="quiz-main">
+    <section id="topic-select" class="panel">
+      <h2>Choose a topic</h2>
+      <div id="topic-list" class="topic-list"></div>
+    </section>
+
+    <section id="question-view" class="panel hidden">
+      <div class="quiz-progress">
+        <span id="question-counter"></span>
+        <span id="score-counter"></span>
+      </div>
+      <video id="clip-video" class="clip-video" autoplay muted playsinline></video>
+      <div id="options" class="options-grid"></div>
+      <div id="feedback" class="feedback"></div>
+      <button id="next-btn" class="next-btn hidden">Next</button>
+    </section>
+
+    <section id="summary-view" class="panel hidden">
+      <h2>Topic complete</h2>
+      <p id="summary-text"></p>
+      <button id="restart-btn" class="next-btn">Choose another topic</button>
+    </section>
+  </main>
+
+  <script src="/static/quiz.js"></script>
+</body>
+</html>
