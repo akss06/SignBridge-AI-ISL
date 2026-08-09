@@ -154,12 +154,47 @@ Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational 
 | Time → Subject → Object → Verb word order | ✅ |
 | Adjective after noun (`red ball` → `BALL RED`) | ✅ |
 | Compound modifier after head noun (`video games` → `GAME VIDEO`) | ✅ |
-| Negation marker at end of clause | ✅ |
+| Negation marker at end of clause (independent of modal position) | ✅ |
 | Clause splitting before reordering (compound/subordinate/complement) | ✅ |
-| Function word dropping (articles, copulas, auxiliaries, prepositions, possessives) | ✅ |
+| Function word dropping (articles, copulas, dummy auxiliaries, prepositions) | ✅ |
+| Passive voice — agent (`by ___`) recognized as doer, `nsubjpass` as patient | ✅ |
+| Modal verbs (can/must/should/...) kept, not silently dropped | ✅ |
+| Recipient/dative (`dative` dep) grouped with direct object, not stranded | ✅ |
+| Ambiguous possessive/object pronouns (`her`/`his`/`its`) — only dropped when actually possessive | ✅ |
 | Surface-form fallback in clip lookup (`games` lemma=`GAME` miss → `GAMES` surface hit) | ✅ |
 | WH-word repositioning | ❌ intentionally omitted — Zeshan is ambiguous |
 | Fingerspelling for unmatched tokens | ❌ out of scope — tokens are dropped |
+
+---
+
+## Gloss engine architecture & scope (Stage 1)
+
+```
+English → spaCy dependency parse → role extraction → deterministic ordering → ISL gloss
+
+Roles extracted per clause: Subject, Agent, Theme/Object, Recipient, Time, Modal, Negation
+Ordering: Time → Subject → Object → Verb → Modal → [NEG]
+```
+
+**Explicit scope boundary:** the engine does not attempt full semantic-role normalization of every prepositional phrase (location, instrument, companion, addressee, prepositional recipient all currently land in the same generic "object" bucket, ordered by their original English position). This is a deliberate choice, not an oversight — testing across composed cases below found it produces reasonable, non-garbled output; splitting those roles further has no demonstrated failure case to justify it yet.
+
+**Fix policy going forward:** don't fix a phenomenon because it's imaginable — fix it when there's a concrete input, the output is demonstrably wrong, the structural cause is identified, and the fix generalizes. That's the bar the fixes above were held to.
+
+**Tested combinations** (`backend/services/gloss.py`, verified via `text_to_gloss()`):
+
+| Feature | Tested |
+|---|---|
+| Basic SVO | ✅ |
+| Passive / passive + agent | ✅ |
+| Passive + modal | ✅ |
+| Passive + negation | ✅ |
+| Pronouns / possessives | ✅ |
+| Recipient (dative) / recipient + possessive / recipient + theme | ✅ |
+| Modal / modal + negation | ✅ |
+| Time / time + recipient + theme | ✅ |
+| Prepositional recipient / location / instrument / companion | ✅ |
+| Composition of multiple features together | ✅ |
+| Regression after fixes (active vs. passive still match) | ✅ |
 
 ---
 

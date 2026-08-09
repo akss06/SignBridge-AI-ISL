@@ -45,18 +45,31 @@ def get_nlp() -> spacy.Language:
 # Drop-lists  (words with no standalone ISL sign)
 # ---------------------------------------------------------------------------
 
-# Articles and possessive determiners (no standalone ISL sign)
-_ARTICLES = {"a", "an", "the", "my", "your", "his", "her", "its", "our", "their"}
+# Articles and possessive determiners (no standalone ISL sign).
+# "his"/"her"/"its" are handled separately (_AMBIGUOUS_POSSESSIVES) since
+# those spellings are also valid object-pronoun forms ("by her", "sent
+# him") — only drop them when spaCy actually tags them as possessive.
+_ARTICLES = {"a", "an", "the", "my", "your", "our", "their"}
+_AMBIGUOUS_POSSESSIVES = {"his", "her", "its"}
 
 # Copula lemmas
 _COPULAS = {"be"}
 
-# Pure auxiliary lemmas (when used as auxiliaries, not main verbs)
-_AUX_LEMMAS = {
+# Pure auxiliary lemmas (when used as auxiliaries, not main verbs) — these
+# are dropped outright: "do"/"have" are dummy/aspect auxiliaries with no
+# standalone ISL sign. True modal verbs (can/must/should/...) are handled
+# separately (_MODAL_LEMMAS) since they carry ability/obligation/possibility
+# meaning that shouldn't be silently deleted.
+_AUX_LEMMAS = {"do", "have"}
+
+# Modal auxiliaries — kept in the gloss (bucketed next to the main verb)
+# rather than dropped, since deleting them loses real meaning (ability,
+# obligation, possibility). Whether the vocab has a sign for each is a
+# separate, harmless concern — unmatched tokens are just dropped at lookup.
+_MODAL_LEMMAS = {
     "will", "would", "shall", "should",
     "can", "could", "may", "might",
-    "do", "have",       # only when aux dep
-    "need",             # modal use
+    "must", "ought", "need",
 }
 
 # Prepositions/particles to drop
@@ -109,6 +122,12 @@ def _is_function_word(tok: Token) -> bool:
         return True
 
     if text_l in _ARTICLES:
+        return True
+
+    # "his"/"her"/"its" are only function words when used as a possessive
+    # determiner (dep_=="poss") — the same spellings are also valid object
+    # pronouns ("by her", "sent him his book") and must not be dropped then.
+    if text_l in _AMBIGUOUS_POSSESSIVES and tok.dep_ == "poss":
         return True
 
     # Copula: dep is 'cop', or lemma is 'be' and POS is AUX/VERB
@@ -269,6 +288,25 @@ def _reorder_adjectives(toks: List[Token], clause_set: set) -> List[Token]:
     return result
 
 
+def _semantic_role(tok: Token) -> str | None:
+    """
+    Returns "subject", "object", or None based on semantic role, not just
+    raw dep_ label. Handles passive voice: nsubjpass is the patient (object
+    role), and the pobj of a "by ___" agent phrase is the actual doer
+    (subject role) — the reverse of what their dep_ labels alone suggest.
+    """
+    dep = tok.dep_
+    if dep == "nsubj":
+        return "subject"
+    if dep == "nsubjpass":
+        return "object"
+    if dep == "pobj" and tok.head.dep_ == "agent":
+        return "subject"
+    if dep in ("dobj", "obj", "iobj", "dative", "pobj", "obl", "attr"):
+        return "object"
+    return None
+
+
 def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     """
     Reorder one clause's tokens into ISL gloss order:
@@ -284,6 +322,7 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     subject_toks: List[Token] = []
     object_toks:  List[Token] = []
     verb_toks:    List[Token] = []
+    modal_toks:   List[Token] = []
     neg_found:    bool = False
     other_toks:   List[Token] = []
 
@@ -299,23 +338,30 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
         dep = tok.dep_
         pos = tok.pos_
 
+        role = _semantic_role(tok)
+
         if _is_time_expression(tok):
             time_toks.append(tok)
-        elif dep in ("nsubj", "nsubjpass"):
+        elif role == "subject":
             subject_toks.append(tok)
-        elif dep in ("dobj", "obj", "iobj", "pobj", "obl", "attr"):
+        elif role == "object":
             object_toks.append(tok)
         elif dep in ("compound", "amod") and tok.head.i in clause_set:
             # Compound modifiers (e.g. "video" in "video games") and adjectival
             # modifiers (e.g. "tall" in "tall man") — bucket with their head noun
             # so they stay in the same group for reordering.
-            head_dep = tok.head.dep_
-            if head_dep in ("nsubj", "nsubjpass"):
+            head_role = _semantic_role(tok.head)
+            if head_role == "subject":
                 subject_toks.append(tok)
-            elif head_dep in ("dobj", "obj", "iobj", "pobj", "obl", "attr"):
+            elif head_role == "object":
                 object_toks.append(tok)
             else:
                 other_toks.append(tok)
+        elif dep == "aux" and tok.lemma_.lower() in _MODAL_LEMMAS:
+            # Modal auxiliaries carry real meaning (ability/obligation/
+            # possibility) — keep them, grouped right after the main verb
+            # rather than dropped or scattered into "other".
+            modal_toks.append(tok)
         elif pos in ("VERB", "AUX") and dep not in (
             "aux", "auxpass", "cop"
         ):
@@ -328,9 +374,9 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     object_toks  = _reorder_adjectives(object_toks,  clause_set)
     other_toks   = _reorder_adjectives(other_toks,   clause_set)
 
-    # Assemble in ISL order: Time Subject Object Verb [NEG]
+    # Assemble in ISL order: Time Subject Object Verb Modal [NEG]
     ordered: List[Token] = (
-        time_toks + subject_toks + object_toks + verb_toks + other_toks
+        time_toks + subject_toks + object_toks + verb_toks + modal_toks + other_toks
     )
 
     # Return (lemma, surface) pairs so the caller can store both forms.
