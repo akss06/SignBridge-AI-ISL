@@ -163,40 +163,22 @@ Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational 
 
 ---
 
-## What still needs doing — handoff notes for next session
+## Known gloss engine limitations
 
-### Stage 7 — Styling pass — ✅ done
-Spinner/step-indicator and gloss-chip polish are complete in `frontend/style.css` (CSS-only, no markup/JS changes). Loading steps render as a connected dot-tracker instead of a generic spinner; gloss chips use a monospace face, a ✓ on matched signs, and a dashed "ghost" style for dropped ones.
+| Limitation | Detail |
+|---|---|
+| Complex compound nouns | Ordering within NPs of 3+ words can still be imperfect |
+| Whisper `tiny` mishears | Occasionally mishears domain-specific words (e.g. "deaf" → "death", "spaCy" → "spacey") — model size tradeoff for speed |
+| Reordered multi-word glosses | CISLR vocab stores phrases in English surface order, so ISL-reordered glosses (e.g. `YOU THANK` from "thank you") won't match the `THANK YOU` vocab entry |
 
-### trim_clips.py — adaptive threshold — ✅ done, full corpus trimmed
-The fixed `MOTION_THRESHOLD = 0.008` global threshold produced two failure modes (`NEAR_ZERO_LENGTH` on gentle clips like pronouns, `BARELY_TRIMMED` on high-motion ones). Replaced with a per-clip adaptive threshold — see `MOTION_PERCENTILE` in `trim_clips.py`.
+## Known issues
 
-Note the percentile is **90th**, not the ~30th originally guessed in this file: real hand-motion is a narrow spike at the top of a clip's own scene-score distribution, so a low percentile lets ordinary compression noise through as "active" and barely trims anything.
-
-All 4,765 clips have been trimmed. Full-run results: 23,782s → 14,717s total (**38.1% saved**), 0 hard errors, 239 non-fatal `BARELY_TRIMMED`/`NO_TRIM_APPLIED` warnings (clips with genuinely continuous motion, correctly left untrimmed) — see `trim_log.json`. `isl_vocab_trimmed.json` has `trimmed_path` for all 4,765 entries.
-
-`backend/services/clip_lookup.py` now prefers `trimmed_path` (falls back to `normalized_path`, then uid reconstruction). `backend/services/assembly.py`'s request-time step no longer does motion-based trimming — clips arrive pre-trimmed, so it only re-encodes each clip to normalize encoding parameters before concat (see `_normalize_clip` and the "Known issues" note below for why that re-encode step still exists and what it actually fixes).
-
-**Still open:**
-- Per-request latency: `_normalize_clip()` runs sequentially per clip in `assemble_video()`. Parallelizing with `ThreadPoolExecutor(max_workers=8)` measured ~3.4x faster in testing — not implemented, deprioritized for now.
-- If a FastAPI server process was already running before the full trim finished, its in-memory `_vocab` singleton is stale (loaded from the pre-trim vocab) until restart — lazy singleton, no auto-invalidation.
-
-### Known gloss engine limitations (acceptable for MVP, document for judges)
-- Compound noun ordering within complex NPs can still be imperfect for 3+ word compounds
-- Whisper `tiny` occasionally mishears domain-specific words (e.g. "deaf" → "death", "spaCy" → "spacey") — model size tradeoff for speed
-- CISLR vocab stores phrases in English surface order, so ISL-reordered multi-word glosses (e.g. `YOU THANK` from "thank you") won't match the `THANK YOU` vocab entry
-
-### Known issues — do NOT change without reading the notes
-- `outputs/` fills up with generated videos — no cleanup logic exists. Fine for demo, add a TTL cleanup for production.
-- Assembly uses `tempfile.TemporaryDirectory` — on Windows, this occasionally fails to delete if ffmpeg holds a file handle. Harmless (OS cleans up on restart) but worth noting.
-- `_vocab` singleton in `clip_lookup.py` is module-level — if `ISL_VOCAB_PATH` is wrong, the error surfaces on first request, not at startup. Intentional (lazy load), but confusing for debugging.
-- `assembly.py`'s `_normalize_clip()` re-encodes every clip (`libx264`, not `-c copy`) before the final concat, with **`-bf 0` (zero B-frames) required**. This is deliberate, not an oversight, and it took two rounds to get right:
-  1. Concatenating clips pulled from differing source encodes caused a visible flash/flicker at each cut when stream-copied directly — re-encoding to identical parameters was the first fix.
-  2. That alone wasn't enough — flicker persisted. Root cause (found via `ffprobe -show_entries frame=pts_time,pkt_dts_time,key_frame`): B-frame reordering leaves a decode/display buffer that doesn't reset cleanly at a concat-demuxer file boundary, producing overlapping/non-monotonic `pts_time` at every join even with matching encode parameters. `-bf 0` forces decode order to equal display order per segment, which fixed it — verified 0 non-monotonic timestamp transitions across a multi-clip concat afterward.
-
-  `_normalize_clip()` also raises `RuntimeError` on a failed re-encode rather than silently falling back to the original clip — a silent fallback would put one non-normalized (and possibly B-frame-containing) segment next to normalized ones, reintroducing the flicker for just that boundary.
-
-  Don't revert any of this (re-encode, `-bf 0`, or the raise-on-failure) without re-checking frame timestamps are monotonic across a real multi-clip concat output.
+| Issue | Detail |
+|---|---|
+| `outputs/` grows unbounded | No cleanup logic — fine for demo, add a TTL cleanup for production |
+| `TemporaryDirectory` cleanup on Windows | Occasionally fails to delete if ffmpeg still holds a file handle — harmless, OS cleans up on restart |
+| Stale `_vocab` singleton | Module-level in `clip_lookup.py` — a wrong `ISL_VOCAB_PATH` surfaces on first request, not at startup (lazy load) |
+| `_normalize_clip()` re-encode + `-bf 0` required | Re-encoding every clip (not `-c copy`) with zero B-frames fixes a flicker at concat-demuxer boundaries — B-frame reordering leaves overlapping/non-monotonic `pts_time` at each join otherwise. Do not revert without re-verifying monotonic timestamps across a real multi-clip concat. |
 
 ---
 
