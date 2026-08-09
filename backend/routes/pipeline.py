@@ -69,10 +69,16 @@ async def run_pipeline(file: UploadFile = File(...)) -> PipelineResult:
         )
 
     # --- Stage 3: Gloss ---
-    sentences = text_to_gloss(transcript)
+    try:
+        sentences = text_to_gloss(transcript)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Gloss generation failed: {exc}") from exc
 
     # --- Stage 4: Clip lookup ---
-    sentences, coverage = lookup_clips(sentences)
+    try:
+        sentences, coverage = lookup_clips(sentences)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     # --- Stage 5: Assembly (graceful on 0% coverage) ---
     partial_result = PipelineResult(

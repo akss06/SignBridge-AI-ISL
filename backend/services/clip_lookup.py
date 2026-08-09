@@ -23,11 +23,14 @@ Configuration (env vars):
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from backend.schemas import GlossToken, PipelineResult, SentenceResult
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -64,9 +67,10 @@ def _load_vocab() -> Dict[str, str]:
     """
     vocab_path = Path(ISL_VOCAB_PATH)
     if not vocab_path.exists():
+        logger.error("ISL vocab JSON not found at configured path: %s", vocab_path)
         raise FileNotFoundError(
-            f"ISL vocab JSON not found: {vocab_path}\n"
-            f"Set ISL_VOCAB_PATH env var to the correct path."
+            "ISL vocab JSON not found. Check the ISL_VOCAB_PATH server "
+            "configuration."
         )
 
     with vocab_path.open(encoding="utf-8") as fh:

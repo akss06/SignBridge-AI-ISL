@@ -173,32 +173,72 @@ body {
   gap: 1rem;
 }
 
-.spinner {
-  width: 22px;
-  height: 22px;
-  border: 3px solid #1e3050;
-  border-top-color: #f59e0b;
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Per-step dots (below) replace the old single spinner as the loading indicator */
+.spinner { display: none; }
 
 .loading-stages {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.85rem;
+  padding-left: 1.5rem;
+}
+
+/* Connecting line threading every stage together — the "bridge" between steps */
+.loading-stages::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: #1e3050;
 }
 
 .stage-step {
+  position: relative;
   font-size: 0.8rem;
   color: #3a5070;
   transition: color 0.2s;
 }
 
+.stage-step::before {
+  content: "";
+  position: absolute;
+  left: -1.5rem;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1e3050;
+  border: 2px solid #112035;
+  box-shadow: 0 0 0 2px #1e3050;
+  transform: translateY(-50%);
+  transition: background 0.2s, box-shadow 0.2s;
+  z-index: 1;
+}
+
 .stage-step.active { color: #f59e0b; font-weight: 600; }
-.stage-step.done   { color: #22c55e; }
+.stage-step.active::before {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px #f59e0b, 0 0 0 5px rgba(245, 158, 11, 0.18);
+  animation: pulse-dot 1.1s ease-in-out infinite;
+}
+
+.stage-step.done { color: #22c55e; }
+.stage-step.done::before {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px #22c55e;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 2px #f59e0b, 0 0 0 5px rgba(245, 158, 11, 0.18); }
+  50%      { box-shadow: 0 0 0 2px #f59e0b, 0 0 0 8px rgba(245, 158, 11, 0.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-step.active::before { animation: none; }
+}
 
 /* ---- Error / no-coverage card ---- */
 .error-card { border-color: #2a1a1a; }
@@ -279,25 +319,48 @@ body {
 .gloss-area {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.6rem;
   margin-bottom: 1rem;
+  counter-reset: sentence;
 }
 
 .gloss-sentence {
+  counter-increment: sentence;
+  position: relative;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
+  padding-left: 1.5rem;
+}
+
+/* Sentence order carries real meaning — number each row */
+.gloss-sentence::before {
+  content: counter(sentence);
+  position: absolute;
+  left: 0;
+  top: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #3a5070;
+  font-variant-numeric: tabular-nums;
 }
 
 .gloss-chip {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   cursor: default;
+  transition: transform 0.12s ease;
 }
+
+.gloss-chip:hover { transform: translateY(-1px); }
 
 .chip-matched {
   background: #0e2d1a;
@@ -305,11 +368,22 @@ body {
   border: 1px solid #1a4a2a;
 }
 
+.chip-matched::before {
+  content: "✓";
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
 .chip-dropped {
-  background: #1e1a10;
-  color: #78716c;
-  border: 1px solid #2a2416;
+  background: transparent;
+  color: #5a6a80;
+  border: 1px dashed #2a3a52;
   text-decoration: line-through;
+  text-decoration-color: #3a4a60;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gloss-chip { transition: none; }
 }
 
 /* Transcript box */

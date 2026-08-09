@@ -10,7 +10,7 @@
 | Speech-to-text | faster-whisper 1.2.1 — Whisper `tiny`, CPU/int8 |
 | Gloss engine | spaCy 3.8.x `en_core_web_sm`, rule-based ISL grammar only |
 | Clip dataset | CISLR v1.5 — 4,765 ISL signs, pre-normalized h264/640×480/25fps |
-| Video assembly | ffmpeg — `-c copy` concat, no re-encode |
+| Video assembly | ffmpeg — per-clip adaptive trim + re-encode, then `-c copy` concat |
 | Frontend | Vanilla HTML / CSS / JS — no framework, no build step |
 
 ## Prerequisites
@@ -74,10 +74,10 @@ SignBridge AI/
 │       ├── asr.py               # faster-whisper singleton + ffmpeg audio extraction
 │       ├── gloss.py             # spaCy ISL grammar engine (rule-based)
 │       ├── clip_lookup.py       # CISLR vocab loader + greedy longest-match lookup
-│       └── assembly.py          # ffmpeg -c copy concat
+│       └── assembly.py          # per-clip adaptive trim + re-encode, then ffmpeg -c copy concat
 ├── frontend/
 │   ├── index.html               # Two-column layout: upload left, results right
-│   ├── style.css                # Dark navy + amber theme (Stage 7 polish pending)
+│   ├── style.css                # Dark navy + amber theme, Stage 7 polish complete
 │   └── app.js                   # Pipeline wiring, loading steps, results render
 ├── trim_clips.py                # Offline utility: trim idle padding from CISLR clips
 ├── outputs/                     # Generated ISL videos (gitignored)
@@ -142,23 +142,24 @@ Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational 
 
 ## What still needs doing — handoff notes for next session
 
-### Stage 7 — Styling pass (not yet started)
-The CSS in `frontend/style.css` is functional but not polished. The brief:
-- Dark navy (`#0d1b2a`) background with amber (`#f59e0b`) accent — already in place
-- Clean two-column layout: video on the right, gloss/coverage/transcript on the right column
-- Polish the loading spinner and step indicators
-- Polish the gloss chip presentation
-- No functional changes — CSS only
-- Keep vanilla CSS, no frameworks
+### Stage 7 — Styling pass — ✅ done
+Spinner/step-indicator and gloss-chip polish are complete in `frontend/style.css` (CSS-only, no markup/JS changes). Loading steps render as a connected dot-tracker instead of a generic spinner; gloss chips use a monospace face, a ✓ on matched signs, and a dashed "ghost" style for dropped ones.
 
-### trim_clips.py — adaptive threshold (partially done, not verified)
-The offline clip-trimming script exists at `trim_clips.py` and has been dry-run tested on 30 demo clips. The current fixed threshold (`MOTION_THRESHOLD = 0.008`) produces two failure modes:
-- **NEAR_ZERO_LENGTH** — threshold too high for gentle-motion clips (pronouns like I, HE)
-- **BARELY_TRIMMED** — threshold too low for high-motion clips, nothing gets trimmed
+### trim_clips.py — adaptive threshold — ✅ implemented, full-corpus run in progress
+The fixed `MOTION_THRESHOLD = 0.008` global threshold produced two failure modes (`NEAR_ZERO_LENGTH` on gentle clips like pronouns, `BARELY_TRIMMED` on high-motion ones). Replaced with a per-clip adaptive threshold — see `MOTION_PERCENTILE` in `trim_clips.py`.
 
-**Needed:** Replace fixed threshold with per-clip adaptive thresholding — compute the score distribution per clip and set the trim threshold at the ~30th percentile of that clip's own scores. Then re-run `--subset --dry-run`, verify results look sane, then run `--subset` (no dry-run) to write the 30 trimmed clips, spot-check them, and finally ask before running `--full` on all 4,765.
+Note the percentile is **90th**, not the ~30th originally guessed in this file: real hand-motion is a narrow spike at the top of a clip's own scene-score distribution, so a low percentile lets ordinary compression noise through as "active" and barely trims anything. Validated against `backend/services/assembly.py`'s identical implementation (same threshold logic, kept in sync — see below) across the 30-clip demo subset: 45% average savings, 0 near-zero-length failures, and it matches the old fixed threshold's results exactly where that threshold worked.
 
-Once trimmed clips are verified, update `backend/services/clip_lookup.py` to prefer `trimmed_path` over `normalized_path` when loading the vocab index. The trimmed vocab JSON is written to `isl_vocab_trimmed.json` by the script.
+Status as of this session:
+- `--subset` (30 demo clips) run for real — confirmed working, known-good fallback. `trimmed_path` written to `isl_vocab_trimmed.json` for all 30.
+- A 100-clip `--full --limit 100` pilot on the wider corpus timed at 380ms/clip, ~40% savings — consistent with the subset.
+- Full `--full` run (all 4,765 clips) kicked off in the background, ~30min estimated. Per-clip failures are logged to `trim_log.json` and skipped, not fatal (existing `try/except` in `process_clips()`).
+
+**Still needed once the full run finishes:**
+1. Review `trim_log.json` for `PROCESSING_FAILED` / warning entries and spot-check a few.
+2. Update `backend/services/clip_lookup.py` to prefer `trimmed_path` over `normalized_path` when loading the vocab index.
+3. Once clip_lookup.py serves pre-trimmed clips, the request-time adaptive trim in `backend/services/assembly.py` (`_trim_head_tail` et al.) becomes redundant work on already-trimmed clips — simplify it back to a plain `-c copy` concat, or at minimum skip re-trimming when the incoming clip is already short. Until that's done, every `/pipeline/run` pays the per-clip trim+re-encode cost on top of the (now largely unnecessary) offline trim.
+4. If step 3 isn't done and per-request latency still matters, parallelizing `_trim_head_tail()` calls in `assemble_video()` (e.g. `ThreadPoolExecutor(max_workers=8)`) measured ~3.4x faster than the current sequential loop — not yet implemented.
 
 ### Known gloss engine limitations (acceptable for MVP, document for judges)
 - Compound noun ordering within complex NPs can still be imperfect for 3+ word compounds
@@ -169,6 +170,7 @@ Once trimmed clips are verified, update `backend/services/clip_lookup.py` to pre
 - `outputs/` fills up with generated videos — no cleanup logic exists. Fine for demo, add a TTL cleanup for production.
 - Assembly uses `tempfile.TemporaryDirectory` — on Windows, this occasionally fails to delete if ffmpeg holds a file handle. Harmless (OS cleans up on restart) but worth noting.
 - `_vocab` singleton in `clip_lookup.py` is module-level — if `ISL_VOCAB_PATH` is wrong, the error surfaces on first request, not at startup. Intentional (lazy load), but confusing for debugging.
+- `assembly.py`'s trimmed segments are **re-encoded** (`libx264`, not `-c copy`) before the final concat. This is deliberate, not an oversight: stream-copy trims can only cut on keyframe boundaries, and concatenating segments pulled from source clips with differing encode parameters caused a visible flash/flicker at each cut (decoders resyncing mid-stream). Re-encoding normalizes every segment to identical parameters and lands cuts at the exact computed timestamp. Don't revert this to `-c copy` without re-verifying the flicker doesn't come back.
 
 ---
 
