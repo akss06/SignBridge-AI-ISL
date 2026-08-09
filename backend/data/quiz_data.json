@@ -1,26 +1,332 @@
 {
   "topics": [
     {
-      "id": "demo",
-      "name": "Demo Topic",
+      "id": "colors",
+      "name": "Colors",
       "questions": [
         {
           "id": "q1",
-          "clip_phrase": "NAME",
-          "correct_answer": "Name",
-          "distractors": ["Goodbye", "Thank you", "Sorry"]
+          "clip_phrase": "RED",
+          "correct_answer": "Red",
+          "distractors": [
+            "Orange",
+            "Green",
+            "Black"
+          ]
         },
         {
           "id": "q2",
-          "clip_phrase": "WATER",
-          "correct_answer": "Water",
-          "distractors": ["Milk", "Food", "Tea"]
+          "clip_phrase": "BLUE",
+          "correct_answer": "Blue",
+          "distractors": [
+            "Red",
+            "Brown",
+            "White"
+          ]
         },
         {
           "id": "q3",
-          "clip_phrase": "SHE",
-          "correct_answer": "She",
-          "distractors": ["He", "They", "We"]
+          "clip_phrase": "GREEN",
+          "correct_answer": "Green",
+          "distractors": [
+            "Blue",
+            "Yellow",
+            "White"
+          ]
+        },
+        {
+          "id": "q4",
+          "clip_phrase": "YELLOW",
+          "correct_answer": "Yellow",
+          "distractors": [
+            "Red",
+            "White",
+            "Blue"
+          ]
+        },
+        {
+          "id": "q5",
+          "clip_phrase": "BLACK",
+          "correct_answer": "Black",
+          "distractors": [
+            "Red",
+            "Brown",
+            "Yellow"
+          ]
+        },
+        {
+          "id": "q6",
+          "clip_phrase": "WHITE",
+          "correct_answer": "White",
+          "distractors": [
+            "Pink",
+            "Red",
+            "Blue"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "family",
+      "name": "Family",
+      "questions": [
+        {
+          "id": "q1",
+          "clip_phrase": "MOTHER",
+          "correct_answer": "Mother",
+          "distractors": [
+            "Father",
+            "Daughter",
+            "Son"
+          ]
+        },
+        {
+          "id": "q2",
+          "clip_phrase": "FATHER",
+          "correct_answer": "Father",
+          "distractors": [
+            "Mother",
+            "Daughter",
+            "Grandfather"
+          ]
+        },
+        {
+          "id": "q3",
+          "clip_phrase": "SISTER",
+          "correct_answer": "Sister",
+          "distractors": [
+            "Father",
+            "Grandmother",
+            "Daughter"
+          ]
+        },
+        {
+          "id": "q4",
+          "clip_phrase": "BROTHER",
+          "correct_answer": "Brother",
+          "distractors": [
+            "Mother",
+            "Daughter",
+            "Grandmother"
+          ]
+        },
+        {
+          "id": "q5",
+          "clip_phrase": "SON",
+          "correct_answer": "Son",
+          "distractors": [
+            "Brother",
+            "Mother",
+            "Father"
+          ]
+        },
+        {
+          "id": "q6",
+          "clip_phrase": "DAUGHTER",
+          "correct_answer": "Daughter",
+          "distractors": [
+            "Mother",
+            "Son",
+            "Father"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "animals",
+      "name": "Animals",
+      "questions": [
+        {
+          "id": "q1",
+          "clip_phrase": "DOG",
+          "correct_answer": "Dog",
+          "distractors": [
+            "Lion",
+            "Bird",
+            "Cow"
+          ]
+        },
+        {
+          "id": "q2",
+          "clip_phrase": "CAT",
+          "correct_answer": "Cat",
+          "distractors": [
+            "Monkey",
+            "Cow",
+            "Lion"
+          ]
+        },
+        {
+          "id": "q3",
+          "clip_phrase": "COW",
+          "correct_answer": "Cow",
+          "distractors": [
+            "Lion",
+            "Horse",
+            "Dog"
+          ]
+        },
+        {
+          "id": "q4",
+          "clip_phrase": "HORSE",
+          "correct_answer": "Horse",
+          "distractors": [
+            "Elephant",
+            "Tiger",
+            "Dog"
+          ]
+        },
+        {
+          "id": "q5",
+          "clip_phrase": "ELEPHANT",
+          "correct_answer": "Elephant",
+          "distractors": [
+            "Monkey",
+            "Cat",
+            "Lion"
+          ]
+        },
+        {
+          "id": "q6",
+          "clip_phrase": "LION",
+          "correct_answer": "Lion",
+          "distractors": [
+            "Dog",
+            "Horse",
+            "Fish"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "numbers",
+      "name": "Numbers",
+      "questions": [
+        {
+          "id": "q1",
+          "clip_phrase": "ONE",
+          "correct_answer": "One",
+          "distractors": [
+            "Ten",
+            "Eight",
+            "Nine"
+          ]
+        },
+        {
+          "id": "q2",
+          "clip_phrase": "TWO",
+          "correct_answer": "Two",
+          "distractors": [
+            "Seven",
+            "Nine",
+            "Six"
+          ]
+        },
+        {
+          "id": "q3",
+          "clip_phrase": "THREE",
+          "correct_answer": "Three",
+          "distractors": [
+            "Nine",
+            "Seven",
+            "Four"
+          ]
+        },
+        {
+          "id": "q4",
+          "clip_phrase": "FOUR",
+          "correct_answer": "Four",
+          "distractors": [
+            "Five",
+            "Three",
+            "Seven"
+          ]
+        },
+        {
+          "id": "q5",
+          "clip_phrase": "FIVE",
+          "correct_answer": "Five",
+          "distractors": [
+            "Four",
+            "Two",
+            "Six"
+          ]
+        },
+        {
+          "id": "q6",
+          "clip_phrase": "SIX",
+          "correct_answer": "Six",
+          "distractors": [
+            "Five",
+            "Nine",
+            "Three"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "name": "Food",
+      "questions": [
+        {
+          "id": "q1",
+          "clip_phrase": "WATER",
+          "correct_answer": "Water",
+          "distractors": [
+            "Sugar",
+            "Rice",
+            "Food"
+          ]
+        },
+        {
+          "id": "q2",
+          "clip_phrase": "MILK",
+          "correct_answer": "Milk",
+          "distractors": [
+            "Bread",
+            "Water",
+            "Sugar"
+          ]
+        },
+        {
+          "id": "q3",
+          "clip_phrase": "TEA",
+          "correct_answer": "Tea",
+          "distractors": [
+            "Bread",
+            "Rice",
+            "Milk"
+          ]
+        },
+        {
+          "id": "q4",
+          "clip_phrase": "FOOD",
+          "correct_answer": "Food",
+          "distractors": [
+            "Salt",
+            "Tea",
+            "Milk"
+          ]
+        },
+        {
+          "id": "q5",
+          "clip_phrase": "RICE",
+          "correct_answer": "Rice",
+          "distractors": [
+            "Food",
+            "Salt",
+            "Water"
+          ]
+        },
+        {
+          "id": "q6",
+          "clip_phrase": "BREAD",
+          "correct_answer": "Bread",
+          "distractors": [
+            "Sugar",
+            "Water",
+            "Rice"
+          ]
         }
       ]
     }

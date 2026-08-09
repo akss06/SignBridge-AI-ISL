@@ -6,6 +6,7 @@ const questionViewEl = document.getElementById("question-view");
 const summaryViewEl = document.getElementById("summary-view");
 
 const clipVideoEl = document.getElementById("clip-video");
+const replayBtnEl = document.getElementById("replay-btn");
 const optionsEl = document.getElementById("options");
 const feedbackEl = document.getElementById("feedback");
 const nextBtnEl = document.getElementById("next-btn");
@@ -91,6 +92,11 @@ function selectAnswer(selected, clickedBtn) {
   scoreCounterEl.textContent = `Score: ${score} / ${questions.length}`;
   nextBtnEl.classList.remove("hidden");
 }
+
+replayBtnEl.addEventListener("click", () => {
+  clipVideoEl.currentTime = 0;
+  clipVideoEl.play().catch(() => {});
+});
 
 nextBtnEl.addEventListener("click", () => {
   currentIndex += 1;

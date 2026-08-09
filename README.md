@@ -69,16 +69,23 @@ SignBridge AI/
 │   │   ├── gloss.py             # POST /gloss/generate
 │   │   ├── lookup.py            # POST /lookup/clips
 │   │   ├── assembly.py          # POST /assembly/assemble
-│   │   └── pipeline.py          # POST /pipeline/run  ← full chain in one call
-│   └── services/
-│       ├── asr.py               # faster-whisper singleton + ffmpeg audio extraction
-│       ├── gloss.py             # spaCy ISL grammar engine (rule-based)
-│       ├── clip_lookup.py       # CISLR vocab loader + greedy longest-match lookup
-│       └── assembly.py          # per-clip adaptive trim + re-encode, then ffmpeg -c copy concat
+│   │   ├── pipeline.py          # POST /pipeline/run  ← full chain in one call
+│   │   └── quiz.py              # GET  /quiz/topics, /quiz/topics/{id}, /quiz/clips/{phrase}
+│   ├── services/
+│   │   ├── asr.py               # faster-whisper singleton + ffmpeg audio extraction
+│   │   ├── gloss.py             # spaCy ISL grammar engine (rule-based)
+│   │   ├── clip_lookup.py       # CISLR vocab loader + greedy longest-match lookup
+│   │   ├── assembly.py          # per-clip adaptive trim + re-encode, then ffmpeg -c copy concat
+│   │   └── quiz.py              # Quiz topic/question loader + clip resolution (own vocab read)
+│   └── data/
+│       └── quiz_data.json       # Hardcoded quiz topics/questions (5 topics, 30 questions)
 ├── frontend/
 │   ├── index.html               # Two-column layout: upload left, results right
 │   ├── style.css                # Dark navy + amber theme, Stage 7 polish complete
-│   └── app.js                   # Pipeline wiring, loading steps, results render
+│   ├── app.js                   # Pipeline wiring, loading steps, results render
+│   ├── quiz.html                # Quiz mode: topic select → question card → summary
+│   ├── quiz.css                 # Quiz mode styling (same dark/amber palette)
+│   └── quiz.js                  # Quiz flow, scoring, clip replay
 ├── trim_clips.py                # Offline utility: trim idle padding from CISLR clips
 ├── outputs/                     # Generated ISL videos (gitignored)
 ├── .env                         # Local config (gitignored)
@@ -119,6 +126,22 @@ Runs all stages in sequence and returns a `PipelineResult`:
 ```
 
 Individual stage endpoints also exist: `/asr/transcribe`, `/gloss/generate`, `/lookup/clips`, `/assembly/assemble`.
+
+---
+
+## Quiz mode
+
+A separate learning feature, fully independent of the main pipeline — reachable via the "Quiz mode →" link in the header (`http://localhost:8000/static/quiz.html`).
+
+Fixed, hardcoded multiple-choice quiz: pick a topic, watch a sign clip, choose the correct meaning from 4 options, get instant correct/incorrect feedback, replay the clip if needed, move to the next question, see a score summary at the end. Session-only — no persistence, no accounts.
+
+```
+GET /quiz/topics             → [{ id, name, question_count }]
+GET /quiz/topics/{topic_id}  → { topic_id, questions: [{ id, clip_phrase, options, correct_answer }] }
+GET /quiz/clips/{phrase}     → streams the sign clip (resolved against the same ISL vocab JSON as the main pipeline)
+```
+
+Content lives in `backend/data/quiz_data.json` — currently 5 topics (Colors, Family, Animals, Numbers, Food), 6 questions each, distractors drawn from within the same topic. `backend/services/quiz.py` does its own read-only vocab lookup (same `ISL_VOCAB_PATH`/`trimmed_path` preference as `clip_lookup.py`) — it does not import or modify the main pipeline's clip lookup.
 
 ---
 
