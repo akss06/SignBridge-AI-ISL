@@ -67,7 +67,16 @@ checkHealth();
 fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (file) {
-    recordedFile = null; // a freshly picked file supersedes any pending recording
+    // A freshly picked file supersedes any pending/in-progress recording —
+    // clear it from both state and UI so only one input method looks active.
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      recordingCancelled = true;
+      stopRecording();
+    }
+    recordedFile = null;
+    recordPreview.classList.add('hidden');
+    recordAudioPreview.removeAttribute('src');
+    clearRecordMessage();
     fileNameDisplay.textContent = file.name;
     submitBtn.disabled = false;
   } else {
@@ -189,6 +198,8 @@ submitBtn.addEventListener('click', async () => {
   if (!file) return;
 
   setLoading(true);
+  recordBtn.disabled = true;
+  rerecordBtn.disabled = true;
   animateLoadingSteps();
 
   const formData = new FormData();
@@ -220,6 +231,8 @@ submitBtn.addEventListener('click', async () => {
     errorCard.classList.remove('hidden');
   } finally {
     setLoading(false);
+    recordBtn.disabled = !recordingSupported;
+    rerecordBtn.disabled = false;
   }
 });
 
@@ -242,6 +255,15 @@ let recordingStartTime = null;
 let timerInterval      = null;
 let recordedBlob       = null;
 let recordedFile       = null; // File built from recordedBlob, handed to submitBtn's handler
+let recordingCancelled = false; // true when a picked file interrupts an in-progress recording
+
+const MIN_RECORDING_MS = 400; // shorter than this almost never contains real speech
+
+const recordingSupported = !!(navigator.mediaDevices && window.MediaRecorder);
+if (!recordingSupported) {
+  recordBtn.disabled = true;
+  showRecordMessage('Recording is not supported in this browser — use file upload instead.');
+}
 
 // Only mime types /pipeline/run's extension allowlist actually accepts
 // (.webm and .mp4 — no .ogg), so a recording is never rejected downstream.
@@ -302,7 +324,13 @@ async function startRecording() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    showRecordMessage('Microphone access denied. Allow microphone access to record, or use file upload instead.');
+    if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      showRecordMessage('No microphone found — use file upload instead.');
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      showRecordMessage('Microphone is unavailable (in use by another app?) — use file upload instead.');
+    } else {
+      showRecordMessage('Microphone access denied. Allow microphone access to record, or use file upload instead.');
+    }
     return;
   }
 
@@ -322,28 +350,39 @@ async function startRecording() {
   mediaRecorder.addEventListener('stop', () => {
     stream.getTracks().forEach((track) => track.stop());
     stopTimer();
+    recordBtn.classList.remove('recording');
+    recordBtnLabel.textContent = 'Record audio';
+
+    if (recordingCancelled) {
+      // A picked file interrupted this recording — discard it, don't
+      // finalize/preview it (the file-input listener already reset the UI).
+      recordingCancelled = false;
+      return;
+    }
+
+    const elapsedMs = Date.now() - recordingStartTime;
 
     const finalMimeType = mediaRecorder.mimeType || 'audio/webm';
     recordedBlob = new Blob(recordedChunks, { type: finalMimeType });
 
-    if (recordedBlob.size === 0) {
-      showRecordMessage('Recording was empty — try again.');
-      recordBtn.classList.remove('recording');
-      recordBtnLabel.textContent = 'Record audio';
+    if (recordedBlob.size === 0 || elapsedMs < MIN_RECORDING_MS) {
+      showRecordMessage('Recording was too short — try again.');
       return;
     }
 
     recordAudioPreview.src = URL.createObjectURL(recordedBlob);
     recordPreview.classList.remove('hidden');
 
+    // A finished recording supersedes any previously picked file — clear
+    // it from the UI so only one input method looks active.
+    fileInput.value = '';
+    fileNameDisplay.textContent = 'No file selected';
+
     // Build the File that submitBtn's handler will send, exactly like a
     // picked file — same field name, same /pipeline/run call.
     const ext = extensionForMimeType(finalMimeType);
     recordedFile = new File([recordedBlob], `recording.${ext}`, { type: finalMimeType });
     submitBtn.disabled = false;
-
-    recordBtn.classList.remove('recording');
-    recordBtnLabel.textContent = 'Record audio';
   });
 
   mediaRecorder.start();

@@ -7,7 +7,7 @@
 | Layer | Technology |
 |---|---|
 | Backend | FastAPI + Uvicorn (Python 3.13) |
-| Speech-to-text | faster-whisper 1.2.1 — Whisper `tiny`, CPU/int8 |
+| Speech-to-text | faster-whisper 1.2.1 — Whisper `small`, CPU/int8 |
 | Gloss engine | spaCy 3.8.x `en_core_web_sm`, rule-based ISL grammar only |
 | Clip dataset | CISLR v1.5 — 4,765 ISL signs, pre-normalized h264/640×480/25fps |
 | Video assembly | ffmpeg — per-clip adaptive trim + re-encode, then `-c copy` concat |
@@ -50,9 +50,11 @@ Open http://localhost:8000
 ISL_VOCAB_PATH=<abs path to isl_vocab_full.json>
 ISL_CLIPS_DIR=<abs path to cislr_normalized/>
 FFMPEG_BIN=ffmpeg          # or full path if not on PATH
-WHISPER_MODEL_SIZE=tiny    # tiny | base | small
+WHISPER_MODEL_SIZE=small   # tiny | base | small — small chosen for accuracy over tiny's speed
 HF_HUB_DISABLE_SYMLINKS_WARNING=1
 ```
+
+First request after a server (re)start downloads/loads the model — with `small` this takes roughly 2–3 minutes one-time (vs. near-instant for `tiny`). Every request after that is a few seconds. Send a throwaway warm-up request right after starting the server before demoing, so the cold start doesn't happen live.
 
 ---
 
@@ -80,9 +82,9 @@ SignBridge AI/
 │   └── data/
 │       └── quiz_data.json       # Hardcoded quiz topics/questions (5 topics, 30 questions)
 ├── frontend/
-│   ├── index.html               # Two-column layout: upload left, results right
+│   ├── index.html               # Two-column layout: upload/record left, results right
 │   ├── style.css                # Dark navy + amber theme, Stage 7 polish complete
-│   ├── app.js                   # Pipeline wiring, loading steps, results render
+│   ├── app.js                   # Pipeline wiring, mic recording, loading steps, results render
 │   ├── quiz.html                # Quiz mode: topic select → question card → summary
 │   ├── quiz.css                 # Quiz mode styling (same dark/amber palette)
 │   └── quiz.js                  # Quiz flow, scoring, clip replay
@@ -126,6 +128,16 @@ Runs all stages in sequence and returns a `PipelineResult`:
 ```
 
 Individual stage endpoints also exist: `/asr/transcribe`, `/gloss/generate`, `/lookup/clips`, `/assembly/assemble`.
+
+---
+
+## Microphone recording
+
+An alternative to file upload on the main page (`frontend/index.html`, in the same upload card, separated by an "or" divider) — not a replacement. Records a complete audio clip in the browser via `MediaRecorder`, lets you preview/replay it and re-record before submitting, then sends it through the **exact same** `/pipeline/run` call a file upload uses — no separate endpoint, no live/streaming transcription. Picking a file and finishing a recording are mutually exclusive in the UI: whichever you do most recently supersedes the other, both in what gets submitted and in what's shown on screen.
+
+No backend changes were needed for this — `.webm` (what `MediaRecorder` produces in Chrome/Edge/Firefox) and `.mp4` (Safari's default) were already in `/pipeline/run`'s accepted extensions, and the existing ffmpeg audio-extraction step in `backend/services/asr.py` already handles the container/codec correctly. Verified end-to-end with a real recorded clip before wiring anything up.
+
+Handles: unsupported browsers (button disabled upfront with a message), microphone permission denial / no device / device busy (distinct messages), and recordings under 400ms (rejected client-side as too short to contain real speech).
 
 ---
 
@@ -203,7 +215,7 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG]
 | Limitation | Detail |
 |---|---|
 | Complex compound nouns | Ordering within NPs of 3+ words can still be imperfect |
-| Whisper `tiny` mishears | Occasionally mishears domain-specific words (e.g. "deaf" → "death", "spaCy" → "spacey") — model size tradeoff for speed |
+| Whisper mishears | `small` is meaningfully more accurate than the original `tiny` default, but can still mishear domain-specific/uncommon words — no model size eliminates this entirely |
 | Reordered multi-word glosses | CISLR vocab stores phrases in English surface order, so ISL-reordered glosses (e.g. `YOU THANK` from "thank you") won't match the `THANK YOU` vocab entry |
 
 ## Known issues
