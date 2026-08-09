@@ -67,6 +67,7 @@ checkHealth();
 fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (file) {
+    recordedFile = null; // a freshly picked file supersedes any pending recording
     fileNameDisplay.textContent = file.name;
     submitBtn.disabled = false;
   } else {
@@ -182,7 +183,9 @@ function renderResults(data) {
 // ── Submit handler ────────────────────────────────────────────────────────────
 
 submitBtn.addEventListener('click', async () => {
-  const file = fileInput.files[0];
+  // A finished recording takes priority over a picked file, since picking a
+  // new file already clears any pending recording (see file-input listener).
+  const file = recordedFile || fileInput.files[0];
   if (!file) return;
 
   setLoading(true);
@@ -221,8 +224,9 @@ submitBtn.addEventListener('click', async () => {
 });
 
 
-// ── Microphone recording (Stage 1: capture + preview only, not wired to
-//    the pipeline yet — that happens in Stage 2) ──────────────────────────────
+// ── Microphone recording (records a complete clip, then submits it through
+//    the exact same /pipeline/run call as a file upload — see submitBtn
+//    handler above, which prefers recordedFile when one is present) ──────────
 
 const recordBtn          = document.getElementById('record-btn');
 const recordBtnLabel     = document.getElementById('record-btn-label');
@@ -236,14 +240,22 @@ let mediaRecorder      = null;
 let recordedChunks     = [];
 let recordingStartTime = null;
 let timerInterval      = null;
-let recordedBlob       = null; // will be handed to the pipeline submit in Stage 2
+let recordedBlob       = null;
+let recordedFile       = null; // File built from recordedBlob, handed to submitBtn's handler
 
+// Only mime types /pipeline/run's extension allowlist actually accepts
+// (.webm and .mp4 — no .ogg), so a recording is never rejected downstream.
 function pickMimeType() {
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm'];
   for (const type of candidates) {
     if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) return type;
   }
   return ''; // let the browser choose its own default (e.g. audio/mp4 on Safari)
+}
+
+function extensionForMimeType(mimeType) {
+  if (mimeType.includes('mp4')) return 'mp4';
+  return 'webm';
 }
 
 function showRecordMessage(text) {
@@ -294,6 +306,11 @@ async function startRecording() {
     return;
   }
 
+  // Starting a new recording invalidates any previous one and disables
+  // submit until this recording finishes.
+  recordedFile = null;
+  submitBtn.disabled = true;
+
   const mimeType = pickMimeType();
   mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   recordedChunks = [];
@@ -306,10 +323,24 @@ async function startRecording() {
     stream.getTracks().forEach((track) => track.stop());
     stopTimer();
 
-    recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const finalMimeType = mediaRecorder.mimeType || 'audio/webm';
+    recordedBlob = new Blob(recordedChunks, { type: finalMimeType });
+
+    if (recordedBlob.size === 0) {
+      showRecordMessage('Recording was empty — try again.');
+      recordBtn.classList.remove('recording');
+      recordBtnLabel.textContent = 'Record audio';
+      return;
+    }
 
     recordAudioPreview.src = URL.createObjectURL(recordedBlob);
     recordPreview.classList.remove('hidden');
+
+    // Build the File that submitBtn's handler will send, exactly like a
+    // picked file — same field name, same /pipeline/run call.
+    const ext = extensionForMimeType(finalMimeType);
+    recordedFile = new File([recordedBlob], `recording.${ext}`, { type: finalMimeType });
+    submitBtn.disabled = false;
 
     recordBtn.classList.remove('recording');
     recordBtnLabel.textContent = 'Record audio';
@@ -337,6 +368,8 @@ recordBtn.addEventListener('click', () => {
 
 rerecordBtn.addEventListener('click', () => {
   recordedBlob = null;
+  recordedFile = null;
+  submitBtn.disabled = true;
   recordPreview.classList.add('hidden');
   recordAudioPreview.removeAttribute('src');
   clearRecordMessage();
