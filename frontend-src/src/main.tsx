@@ -1,0 +1,10 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { PipelineApp } from './pipeline/PipelineApp';
+import './styles/pipeline.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <PipelineApp />
+  </StrictMode>
+);
