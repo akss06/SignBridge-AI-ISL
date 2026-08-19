@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { HealthStatus } from './HealthStatus';
 import { FileDropZone } from './FileDropZone';
 import { Recorder } from './Recorder';
@@ -102,11 +103,35 @@ export function PipelineApp() {
 
           <HealthStatus />
 
-          {showLoading && <LoadingPanel active={showLoading} complete={requestComplete} />}
+          <AnimatePresence>
+            {showLoading && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+              >
+                <LoadingPanel active={showLoading} complete={requestComplete} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="right-col">
-          {showResults && <ResultsView result={result} httpErrorMessage={httpErrorMessage} />}
+          <AnimatePresence mode="wait">
+            {showResults && (
+              <motion.div
+                key={result ? 'result' : 'error'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+              >
+                <ResultsView result={result} httpErrorMessage={httpErrorMessage} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 

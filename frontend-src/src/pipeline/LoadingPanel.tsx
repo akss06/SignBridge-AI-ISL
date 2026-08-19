@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 const STEP_ORDER = ['asr', 'gloss', 'lookup', 'assembly'] as const;
 type StepKey = (typeof STEP_ORDER)[number];
 
 const STEP_LABELS: Record<StepKey, string> = {
-  asr: 'Transcribing audio…',
-  gloss: 'Generating ISL gloss…',
-  lookup: 'Matching clips…',
-  assembly: 'Assembling video…',
+  asr: 'Transcribing audio',
+  gloss: 'Generating ISL gloss',
+  lookup: 'Matching clips',
+  assembly: 'Assembling video',
 };
 
 // Rough timing — ASR is slowest. Matches the original app.js delays exactly.
@@ -25,6 +26,14 @@ interface Props {
 
 const ALL_DONE: Record<StepKey, StepStatus> = { asr: 'done', gloss: 'done', lookup: 'done', assembly: 'done' };
 const ALL_PENDING: Record<StepKey, StepStatus> = { asr: 'pending', gloss: 'pending', lookup: 'pending', assembly: 'pending' };
+
+// Fraction of the bridge filled once step i is active/done — the connector
+// between node i and i+1 lights up as the signal travels along it.
+function fillFraction(statuses: Record<StepKey, StepStatus>): number {
+  const doneCount = STEP_ORDER.filter((k) => statuses[k] === 'done').length;
+  const hasActive = STEP_ORDER.some((k) => statuses[k] === 'active');
+  return (doneCount + (hasActive ? 0.5 : 0)) / STEP_ORDER.length;
+}
 
 export function LoadingPanel({ active, complete }: Props) {
   const [statuses, setStatuses] = useState<Record<StepKey, StepStatus>>(ALL_PENDING);
@@ -57,14 +66,33 @@ export function LoadingPanel({ active, complete }: Props) {
 
   return (
     <div className="loading-panel">
-      <div className="spinner" />
-      <div className="loading-stages">
+      <div className="bridge">
+        <div className="bridge-track">
+          <div className="bridge-track-fill" />
+          <motion.div
+            className="bridge-track-signal"
+            animate={{ scaleX: fillFraction(statuses) }}
+            initial={false}
+            transition={{ type: 'spring', stiffness: 70, damping: 18 }}
+          />
+        </div>
         {STEP_ORDER.map((key) => (
-          <span key={key} className={`stage-step ${statuses[key]}`}>
-            {STEP_LABELS[key]}
-          </span>
+          <div className={`bridge-node ${statuses[key]}`} key={key}>
+            <div className="bridge-node-dot" style={nodeDotStyle(statuses[key])} />
+            <span className="bridge-node-label">{STEP_LABELS[key]}</span>
+          </div>
         ))}
       </div>
     </div>
   );
+}
+
+function nodeDotStyle(status: StepStatus): CSSProperties {
+  if (status === 'done') return { background: 'var(--success)', boxShadow: '0 0 0 2px var(--success)' };
+  if (status === 'active')
+    return {
+      background: 'var(--amber)',
+      boxShadow: '0 0 0 2px var(--amber), 0 0 0 5px rgba(245, 158, 11, 0.18)',
+    };
+  return {};
 }

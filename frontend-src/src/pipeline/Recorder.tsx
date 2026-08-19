@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import type { UseRecorderResult } from '../hooks/useRecorder';
 
 interface Props {
@@ -31,12 +32,17 @@ export function Recorder({ recorder, disabled }: Props) {
       {state === 'recording' && <span className="record-timer">{formatElapsed(elapsedSeconds)}</span>}
 
       {state === 'recorded' && audioPreviewUrl && (
-        <div className="record-preview">
+        <motion.div
+          className="record-preview"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18 }}
+        >
           <audio controls src={audioPreviewUrl} />
           <button className="btn-link" type="button" disabled={disabled} onClick={reRecord}>
             Re-record
           </button>
-        </div>
+        </motion.div>
       )}
 
       {errorMessage && <p className="record-message">{errorMessage}</p>}

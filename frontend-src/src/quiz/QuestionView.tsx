@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { VideoPlayer } from '../components/VideoPlayer';
 import { clipUrl } from '../api/quiz';
 import type { Question } from '../types/quiz';
 
@@ -39,13 +40,6 @@ export function QuestionView({ question, index, total, score, onAnswered, onNext
     onAnswered(correct);
   }
 
-  function handleReplay() {
-    const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = 0;
-    v.play().catch(() => {});
-  }
-
   return (
     <section className="panel">
       <div className="quiz-progress">
@@ -57,12 +51,7 @@ export function QuestionView({ question, index, total, score, onAnswered, onNext
         </span>
       </div>
 
-      <video ref={videoRef} className="clip-video" autoPlay muted playsInline src={clipUrl(question.clip_phrase)}>
-        Your browser does not support video playback.
-      </video>
-      <button className="replay-btn" type="button" onClick={handleReplay}>
-        ↻ Replay clip
-      </button>
+      <VideoPlayer ref={videoRef} src={clipUrl(question.clip_phrase)} autoPlay muted />
 
       <div className="options-grid">
         {question.options.map((opt) => {

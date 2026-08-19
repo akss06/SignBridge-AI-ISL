@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { TopicSelect } from './TopicSelect';
 import { QuestionView } from './QuestionView';
 import { SummaryView } from './SummaryView';
@@ -49,23 +50,32 @@ export function QuizApp() {
       </header>
 
       <main className="quiz-main">
-        {view === 'topics' && <TopicSelect onSelect={handleSelectTopic} />}
+        <AnimatePresence mode="wait">
+          {view === 'topics' && (
+            <motion.div key="topics" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              <TopicSelect onSelect={handleSelectTopic} />
+            </motion.div>
+          )}
 
-        {view === 'question' && questions.length > 0 && (
-          <QuestionView
-            key={index}
-            question={questions[index]}
-            index={index}
-            total={questions.length}
-            score={score}
-            onAnswered={handleAnswered}
-            onNext={handleNext}
-          />
-        )}
+          {view === 'question' && questions.length > 0 && (
+            <motion.div key={`q-${index}`} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+              <QuestionView
+                question={questions[index]}
+                index={index}
+                total={questions.length}
+                score={score}
+                onAnswered={handleAnswered}
+                onNext={handleNext}
+              />
+            </motion.div>
+          )}
 
-        {view === 'summary' && (
-          <SummaryView score={score} total={questions.length} onRestart={() => setView('topics')} />
-        )}
+          {view === 'summary' && (
+            <motion.div key="summary" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              <SummaryView score={score} total={questions.length} onRestart={() => setView('topics')} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </>
   );

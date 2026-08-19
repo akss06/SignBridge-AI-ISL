@@ -1,3 +1,6 @@
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useEffect } from 'react';
+import { VideoPlayer } from '../components/VideoPlayer';
 import type { PipelineResult } from '../types/pipeline';
 
 interface Props {
@@ -10,6 +13,28 @@ function coverageClass(pct: number): string {
   if (pct >= 40) return 'cov-mid';
   return 'cov-low';
 }
+
+function CoveragePct({ pct }: { pct: number }) {
+  const value = useMotionValue(0);
+  const spring = useSpring(value, { stiffness: 90, damping: 20 });
+  const rounded = useTransform(spring, (v) => `${Math.round(v)}%`);
+
+  useEffect(() => {
+    value.set(pct);
+  }, [pct, value]);
+
+  return <motion.span className="coverage-pct">{rounded}</motion.span>;
+}
+
+const chipContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.035 } },
+};
+
+const chipItem = {
+  hidden: { opacity: 0, y: 6, scale: 0.92 },
+  show: { opacity: 1, y: 0, scale: 1 },
+};
 
 export function ResultsView({ result, httpErrorMessage }: Props) {
   if (httpErrorMessage) {
@@ -49,34 +74,42 @@ export function ResultsView({ result, httpErrorMessage }: Props) {
 
   return (
     <div className="card results-card">
-      <div className="video-wrapper">
-        <video id="isl-video" controls playsInline src={result.output_video_url ?? undefined}>
-          Your browser does not support video playback.
-        </video>
-      </div>
+      {result.output_video_url && <VideoPlayer src={result.output_video_url} />}
 
       <div className="coverage-row">
         <span className="coverage-label">Sign coverage</span>
         <div className="coverage-bar-track">
-          <div className={`coverage-bar-fill ${coverageClass(pct)}`} style={{ width: `${pct}%` }} />
+          <motion.div
+            className={`coverage-bar-fill ${coverageClass(pct)}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ type: 'spring', stiffness: 90, damping: 20 }}
+          />
         </div>
-        <span className="coverage-pct">{pct}%</span>
+        <CoveragePct pct={pct} />
       </div>
 
       <div className="section-label">ISL Gloss</div>
       <div className="gloss-area">
         {result.sentences.map((sent, i) => (
-          <div className="gloss-sentence" key={i}>
+          <motion.div
+            className="gloss-sentence"
+            key={i}
+            variants={chipContainer}
+            initial="hidden"
+            animate="show"
+          >
             {sent.gloss_tokens.map((tok, j) => (
-              <span
+              <motion.span
                 key={j}
+                variants={chipItem}
                 className={`gloss-chip ${tok.matched ? 'chip-matched' : 'chip-dropped'}`}
                 title={tok.matched ? 'Sign found in CISLR' : 'No sign found — dropped'}
               >
                 {tok.token}
-              </span>
+              </motion.span>
             ))}
-          </div>
+          </motion.div>
         ))}
       </div>
 

@@ -13,7 +13,7 @@ export function FileDropZone({ file, onFileSelected }: Props) {
     <>
       <label
         className="file-drop"
-        style={dragOver ? { borderColor: '#f59e0b' } : undefined}
+        style={dragOver ? { borderColor: 'var(--amber)', background: 'rgba(245, 158, 11, 0.06)' } : undefined}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);

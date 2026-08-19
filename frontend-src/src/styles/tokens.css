@@ -1,0 +1,42 @@
+/* =========================================================
+   SignBridge AI — design tokens (Stage 3)
+
+   Same navy/amber identity as the original app, layered with
+   depth (void → surface → glass) instead of flat panels.
+   ========================================================= */
+
+:root {
+  /* -- color: ground -- */
+  --void: #080f19;
+  --surface: #0d1b2a;
+  --surface-raised: #112035;
+  --glass: rgba(24, 42, 68, 0.55);
+  --glass-border: rgba(122, 143, 168, 0.16);
+  --hairline: #1e3050;
+
+  /* -- color: ink -- */
+  --ink: #e8eaf0;
+  --ink-dim: #7a8fa8;
+  --ink-faint: #3a5070;
+
+  /* -- color: signal -- */
+  --amber: #f59e0b;
+  --amber-bright: #fbbf24;
+  --amber-glow: rgba(245, 158, 11, 0.35);
+  --success: #22c55e;
+  --danger: #ef4444;
+
+  /* -- type -- */
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: "Manrope", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  /* -- shape -- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  /* -- depth -- */
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.2), 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 0 1px var(--glass-border), 0 8px 28px -10px rgba(0, 0, 0, 0.6);
+}
