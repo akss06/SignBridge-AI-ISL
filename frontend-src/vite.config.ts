@@ -11,8 +11,17 @@ export default defineConfig({
     proxy: {
       '/health': 'http://localhost:8000',
       '/pipeline': 'http://localhost:8000',
-      '/quiz': 'http://localhost:8000',
+      '/quiz/': 'http://localhost:8000',
       '/outputs': 'http://localhost:8000',
+    },
+  },
+  build: {
+    rollupOptions: {
+      // Two-page app, same as the original static frontend (index.html + quiz.html).
+      input: {
+        main: 'index.html',
+        quiz: 'quiz.html',
+      },
     },
   },
 })
