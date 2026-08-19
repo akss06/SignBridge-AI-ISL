@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Props {
   file: File | null;
@@ -8,6 +8,13 @@ interface Props {
 export function FileDropZone({ file, onFileSelected }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  // Mirrors the original's fileInput.value = '' when a recording supersedes
+  // a picked file — without this, re-picking the exact same file afterward
+  // wouldn't fire a change event (browsers don't re-fire for an unchanged value).
+  useEffect(() => {
+    if (!file && inputRef.current) inputRef.current.value = '';
+  }, [file]);
 
   return (
     <>
