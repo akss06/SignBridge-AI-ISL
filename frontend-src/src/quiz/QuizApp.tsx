@@ -43,7 +43,9 @@ export function QuizApp() {
             SignBridge <span className="accent">AI</span>
           </span>
           <span className="app-tagline">Quiz mode</span>
-          <a className="nav-link" href="/">
+          {/* Relative + explicit filename, not "/" — avoids relying on
+              directory-index behavior once this is served from a subpath. */}
+          <a className="nav-link" href="./index.html">
             ← Back to converter
           </a>
         </div>

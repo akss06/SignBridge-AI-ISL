@@ -11,7 +11,14 @@ ISL grammar rules applied (per published ISL linguistics):
   - Drop function words that have no standalone ISL sign:
       articles, copulas, auxiliaries, most prepositions, particles
   - Negation: place NEG marker at the END of the clause
-  - No wh-word repositioning (no documented ISL rule exists)
+  - Wh-words move to the END of the clause, after negation if present
+    (Zeshan 2003/2004/2006; Aboh, Pfau & Zeshan 2005; Kulshreshtha 2020
+    fieldwork; Dasgupta et al. 2010). WHO/WHERE/WHICH/HOW MANY each map to
+    their own multi-sign gloss sequence rather than one generic wh-sign;
+    WHAT/WHY/HOW fall under the single general WHAT sign. Wh-doubling
+    (a wh-sign also appearing clause-initially) is a real but purely
+    pragmatic phenomenon (surprise/curiosity/anger) that can't be reliably
+    detected from plain text, so it is intentionally not implemented.
   - No fingerspelling — unknown tokens are simply kept as-is for Stage 4
     to drop if unmatched.
 
@@ -106,6 +113,31 @@ _CLAUSE_MARKER_DROP = {"cc", "mark"}
 _NEG_WORDS = {"not", "n't", "never", "nobody", "nothing",
               "nowhere", "neither", "nor"}
 
+# spaCy fine-grained tags used for wh-question words (who/what/where/
+# which/why/how). dep_ isn't reliable here — a wh-word can be nsubj, dobj,
+# advmod, etc. depending on the question — so tag_ is the common signal.
+_WH_TAGS = {"WP", "WRB", "WDT"}
+
+# Wh-word lemma -> ISL gloss sequence. Per Zeshan (2003/2004/2006),
+# Aboh/Pfau/Zeshan (2005), and Kulshreshtha's (2020) fieldwork with 5 native
+# ISL signers, ISL does not use one generic wh-sign for every English
+# wh-word: WHO/WHERE/WHICH/HOW MANY each have their own multi-sign
+# sequence, while WHAT/WHY/HOW fall under the single general WHAT sign.
+# "which" and "that" used as relative-clause connectors (dep_=="mark"/
+# part of a relcl) share these same tags/lemmas but aren't real questions —
+# out of scope here; see _is_wh_word.
+_WH_GLOSS_MAP: dict[str, List[str]] = {
+    "who": ["FACE", "WHAT"],
+    "where": ["PLACE", "WHAT"],
+    "which": ["INDEX", "INDEX", "INDEX", "WHAT"],
+    "what": ["WHAT"],
+    "why": ["WHAT"],
+    "how": ["WHAT"],
+}
+# "how many" is a two-word wh-phrase with its own gloss sequence, handled
+# as a special case wherever "how" is immediately followed by "many".
+_HOW_MANY_GLOSS = ["COUNT", "WHAT"]
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -161,6 +193,31 @@ def _is_negation(tok: Token) -> bool:
     if tok.dep_ == "neg":
         return True
     return tok.text.lower() in _NEG_WORDS
+
+
+def _is_wh_word(tok: Token) -> bool:
+    """
+    True for wh-question words (who/what/where/which/why/how). Restricted
+    to the known wh-question lemmas (via _WH_GLOSS_MAP) so relative-clause
+    uses of "which"/"that" — which share the same tag_ — aren't
+    misclassified as a question needing end-of-clause repositioning.
+    """
+    return tok.tag_ in _WH_TAGS and tok.lemma_.lower() in _WH_GLOSS_MAP
+
+
+def _wh_gloss_pairs(tok: Token, how_many: bool = False) -> List[Tuple[str, str]]:
+    """
+    Maps one wh-word token to its ISL gloss sequence — possibly multiple
+    tokens (e.g. WHO -> FACE WHAT). See _WH_GLOSS_MAP for sourcing.
+    Surface form is the original English wh-word (or "HOW MANY" for the
+    two-word phrase), preserved on every generated token the same way
+    verb inflection preserves surface forms elsewhere in this file.
+    """
+    if how_many:
+        return [(gloss, "HOW MANY") for gloss in _HOW_MANY_GLOSS]
+    gloss_seq = _WH_GLOSS_MAP.get(tok.lemma_.lower(), ["WHAT"])
+    surface = tok.text.upper()
+    return [(gloss, surface) for gloss in gloss_seq]
 
 
 def _is_time_expression(tok: Token) -> bool:
@@ -314,7 +371,7 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     then:
       - drop function words
       - move adjectives after their head nouns (ISL adjective-after-noun order)
-      - append NEG marker at the end
+      - append NEG marker, then any wh-word gloss sequence, at the end
 
     Returns a list of (lemma_upper, surface_upper) pairs.
     """
@@ -325,14 +382,32 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     modal_toks:   List[Token] = []
     neg_found:    bool = False
     other_toks:   List[Token] = []
+    wh_pairs:     List[Tuple[str, str]] = []
 
     clause_set = {t.i for t in clause_tokens}
 
+    # Pre-scan for "how many" — the "many" partner is absorbed into the
+    # wh-word's gloss sequence (COUNT WHAT) and must be skipped below, not
+    # also classified as a normal content word.
+    how_many_how_idx: set[int] = set()
+    how_many_consumed: set[int] = set()
+    for idx, tok in enumerate(clause_tokens):
+        if tok.tag_ == "WRB" and tok.lemma_.lower() == "how":
+            nxt = clause_tokens[idx + 1] if idx + 1 < len(clause_tokens) else None
+            if nxt is not None and nxt.text.lower() == "many":
+                how_many_how_idx.add(tok.i)
+                how_many_consumed.add(nxt.i)
+
     for tok in clause_tokens:
+        if tok.i in how_many_consumed:
+            continue
         if _is_function_word(tok):
             continue
         if _is_negation(tok):
             neg_found = True
+            continue
+        if _is_wh_word(tok):
+            wh_pairs.extend(_wh_gloss_pairs(tok, how_many=tok.i in how_many_how_idx))
             continue
 
         dep = tok.dep_
@@ -390,6 +465,9 @@ def _clause_to_gloss(clause_tokens: List[Token]) -> List[Tuple[str, str]]:
     if neg_found:
         pairs.append(("NOT", "NOT"))
 
+    # Wh-words move to the very end of the clause, after negation.
+    pairs.extend(wh_pairs)
+
     return pairs
 
 
@@ -405,7 +483,7 @@ def text_to_gloss(transcript: str) -> List[SentenceResult]:
       1. Parsed with spaCy.
       2. Split into clauses.
       3. Each clause reordered into ISL Time-Subject-Object-Verb order.
-      4. Function words dropped; negation moved to end.
+      4. Function words dropped; negation, then wh-words, moved to end.
 
     Returns one SentenceResult per spaCy sentence.
     """
@@ -426,15 +504,15 @@ def text_to_gloss(transcript: str) -> List[SentenceResult]:
 
         clauses = _split_into_clauses(sent)
 
-        all_pairs: List[Tuple[str, str]] = []
-        for clause in clauses:
-            all_pairs.extend(_clause_to_gloss(clause))
-
-        # Deduplicate consecutive identical lemmas (artefact of clause overlap)
+        # Deduplicate only at clause SEAMS (artefact of clause overlap) — not
+        # within a clause's own output, since a clause can legitimately
+        # repeat a lemma on purpose (e.g. WHICH -> INDEX INDEX INDEX WHAT).
         deduped: List[Tuple[str, str]] = []
-        for pair in all_pairs:
-            if not deduped or pair[0] != deduped[-1][0]:
-                deduped.append(pair)
+        for clause in clauses:
+            clause_pairs = _clause_to_gloss(clause)
+            if deduped and clause_pairs and clause_pairs[0][0] == deduped[-1][0]:
+                clause_pairs = clause_pairs[1:]
+            deduped.extend(clause_pairs)
 
         gloss_tokens = [
             GlossToken(

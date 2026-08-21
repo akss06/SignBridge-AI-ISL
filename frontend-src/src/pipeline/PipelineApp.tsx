@@ -73,7 +73,10 @@ export function PipelineApp() {
             SignBridge <span className="accent">AI</span>
           </h1>
           <p className="app-tagline">English audio / video → Indian Sign Language</p>
-          <a className="nav-link" href="/quiz.html">
+          {/* Relative, not root-absolute — stays correct whatever base path this
+              build ends up served under (dev root today, /static/ once wired
+              into the backend's existing static mount). */}
+          <a className="nav-link" href="./quiz.html">
             Quiz mode →
           </a>
         </div>

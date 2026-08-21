@@ -159,7 +159,7 @@ Content lives in `backend/data/quiz_data.json` — currently 5 topics (Colors, F
 
 ## ISL grammar rules implemented (`backend/services/gloss.py`)
 
-Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational ISL literature:
+Based on Zeshan (2000, 2003, 2004, 2006) *Indo-Pakistani Sign Language Grammar* and computational ISL literature, including Aboh, Pfau & Zeshan (2005), Kulshreshtha's (2020) fieldwork with 5 native ISL signers, and Dasgupta et al.'s (2010) published ISL MT system:
 
 | Rule | Status |
 |---|---|
@@ -174,7 +174,8 @@ Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational 
 | Recipient/dative (`dative` dep) grouped with direct object, not stranded | ✅ |
 | Ambiguous possessive/object pronouns (`her`/`his`/`its`) — only dropped when actually possessive | ✅ |
 | Surface-form fallback in clip lookup (`games` lemma=`GAME` miss → `GAMES` surface hit) | ✅ |
-| WH-word repositioning | ❌ intentionally omitted — Zeshan is ambiguous |
+| WH-word repositioning (end of clause, after negation) — `WHO`→`FACE WHAT`, `WHERE`→`PLACE WHAT`, `WHICH`→`INDEX INDEX INDEX WHAT`, `HOW MANY`→`COUNT WHAT`, `WHAT`/`WHY`/`HOW`→`WHAT` | ✅ |
+| Wh-doubling (wh-sign repeated clause-initially) | ❌ intentionally omitted — real but purely pragmatic (surprise/curiosity/anger), not detectable from plain text |
 | Fingerspelling for unmatched tokens | ❌ out of scope — tokens are dropped |
 
 ---
@@ -184,8 +185,8 @@ Based on Zeshan (2000) *Indo-Pakistani Sign Language Grammar* and computational 
 ```
 English → spaCy dependency parse → role extraction → deterministic ordering → ISL gloss
 
-Roles extracted per clause: Subject, Agent, Theme/Object, Recipient, Time, Modal, Negation
-Ordering: Time → Subject → Object → Verb → Modal → [NEG]
+Roles extracted per clause: Subject, Agent, Theme/Object, Recipient, Time, Modal, Negation, Wh-word
+Ordering: Time → Subject → Object → Verb → Modal → [NEG] → [WH]
 ```
 
 **Explicit scope boundary:** the engine does not attempt full semantic-role normalization of every prepositional phrase (location, instrument, companion, addressee, prepositional recipient all currently land in the same generic "object" bucket, ordered by their original English position). This is a deliberate choice, not an oversight — testing across composed cases below found it produces reasonable, non-garbled output; splitting those roles further has no demonstrated failure case to justify it yet.
@@ -207,6 +208,8 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG]
 | Prepositional recipient / location / instrument / companion | ✅ |
 | Composition of multiple features together | ✅ |
 | Regression after fixes (active vs. passive still match) | ✅ |
+| Wh-questions: simple (`WHO`/`WHERE`/`WHAT`), with negation, with modal | ✅ |
+| Wh-questions: multi-token (`WHICH`, `HOW MANY`) | ✅ |
 
 ---
 
@@ -217,6 +220,7 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG]
 | Complex compound nouns | Ordering within NPs of 3+ words can still be imperfect |
 | Whisper mishears | `small` is meaningfully more accurate than the original `tiny` default, but can still mishear domain-specific/uncommon words — no model size eliminates this entirely |
 | Reordered multi-word glosses | CISLR vocab stores phrases in English surface order, so ISL-reordered glosses (e.g. `YOU THANK` from "thank you") won't match the `THANK YOU` vocab entry |
+| Relative-clause "which"/wh-words misdetected as questions | `_is_wh_word()` uses spaCy's tag_, which doesn't distinguish "Which book do you want?" (question) from "the book which she read" (relative clause) — the latter gets incorrectly repositioned to the clause end too |
 
 ## Known issues
 
