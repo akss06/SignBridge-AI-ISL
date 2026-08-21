@@ -210,6 +210,7 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG] → [WH]
 | Regression after fixes (active vs. passive still match) | ✅ |
 | Wh-questions: simple (`WHO`/`WHERE`/`WHAT`), with negation, with modal | ✅ |
 | Wh-questions: multi-token (`WHICH`, `HOW MANY`) | ✅ |
+| Relative-clause "which"/"who" (not repositioned/converted — matches existing "that" handling) | ✅ |
 
 ---
 
@@ -220,7 +221,7 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG] → [WH]
 | Complex compound nouns | Ordering within NPs of 3+ words can still be imperfect |
 | Whisper mishears | `small` is meaningfully more accurate than the original `tiny` default, but can still mishear domain-specific/uncommon words — no model size eliminates this entirely |
 | Reordered multi-word glosses | CISLR vocab stores phrases in English surface order, so ISL-reordered glosses (e.g. `YOU THANK` from "thank you") won't match the `THANK YOU` vocab entry |
-| Relative-clause "which"/wh-words misdetected as questions | `_is_wh_word()` uses spaCy's tag_, which doesn't distinguish "Which book do you want?" (question) from "the book which she read" (relative clause) — the latter gets incorrectly repositioned to the clause end too |
+| Relative-clause internal word order unverified | e.g. "the book which she read" → `BOOK SHE WHICH READ` — subject/object order inside the relative clause hasn't been checked against real ISL structure, only for internal consistency (which/that/who now all behave the same way as each other). Separate open question from subordinate/causal clause ordering more generally (also unverified) — flagged, not guessed at. |
 
 ## Known issues
 

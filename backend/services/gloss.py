@@ -197,12 +197,20 @@ def _is_negation(tok: Token) -> bool:
 
 def _is_wh_word(tok: Token) -> bool:
     """
-    True for wh-question words (who/what/where/which/why/how). Restricted
-    to the known wh-question lemmas (via _WH_GLOSS_MAP) so relative-clause
-    uses of "which"/"that" — which share the same tag_ — aren't
-    misclassified as a question needing end-of-clause repositioning.
+    True for wh-question words (who/what/where/which/why/how) — but NOT
+    when the same tag_/lemma is a relative pronoun instead ("the book
+    which she read", "the man who left"). Relative pronouns attach
+    directly to the relative clause's verb, which carries dep_=="relcl" —
+    interrogative wh-words never do. Checked via the dependency parse the
+    same way _semantic_role() distinguishes passive agent from subject,
+    not via tag_/lemma alone (tag_ can't tell "Which book do you want?"
+    apart from "the book which she read" — both are WDT).
     """
-    return tok.tag_ in _WH_TAGS and tok.lemma_.lower() in _WH_GLOSS_MAP
+    if tok.tag_ not in _WH_TAGS or tok.lemma_.lower() not in _WH_GLOSS_MAP:
+        return False
+    if tok.head.dep_ == "relcl":
+        return False
+    return True
 
 
 def _wh_gloss_pairs(tok: Token, how_many: bool = False) -> List[Tuple[str, str]]:
