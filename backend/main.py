@@ -10,6 +10,7 @@ Serves:
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,6 +29,7 @@ from backend.routes.lookup import router as lookup_router
 from backend.routes.assembly import router as assembly_router
 from backend.routes.pipeline import router as pipeline_router
 from backend.routes.quiz import router as quiz_router
+from backend.services.output_cleanup import cleanup_old_outputs
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -44,10 +46,21 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 # App
 # ---------------------------------------------------------------------------
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs once per process start, not per request — never touches a video
+    # still being generated or one created earlier in this same run, since
+    # cleanup_old_outputs() only deletes files whose mtime is already older
+    # than the retention threshold.
+    cleanup_old_outputs()
+    yield
+
+
 app = FastAPI(
     title="SignBridge AI",
     description="Converts pre-recorded English audio/video to ISL signed video.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # ---------------------------------------------------------------------------

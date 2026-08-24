@@ -45,3 +45,6 @@ slides/
 
 # Generated project docs
 *.pdf
+
+# Local tooling state
+.freebuff/
