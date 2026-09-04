@@ -15,7 +15,7 @@
 
 ## Prerequisites
 
-- Python 3.13 (project was built and tested on 3.13.2)
+- Python 3.13 specifically (built and tested on 3.13.2) — **not 3.14+**. Several deps (spaCy's `thinc`/`blis`, `tokenizers`, `av`, `ctranslate2`, `onnxruntime`) don't ship wheels for 3.14 yet, so on 3.14 pip falls back to compiling from C/Rust source and fails without build tools. On 3.13 the setup below needs no build tools.
 - ffmpeg on PATH (or set `FFMPEG_BIN` in `.env`)
 - CISLR dataset — normalized clips + vocab JSON (see `.env.example` for paths)
 
@@ -201,7 +201,7 @@ GET /quiz/topics/{topic_id}  → { topic_id, questions: [{ id, clip_phrase, opti
 GET /quiz/clips/{phrase}     → streams the sign clip (resolved against the same ISL vocab JSON as the main pipeline)
 ```
 
-Content lives in `backend/data/quiz_data.json` — currently 5 topics (Colors, Family, Animals, Numbers, Food), 6 questions each, distractors drawn from within the same topic. `backend/services/quiz.py` does its own read-only vocab lookup (same `ISL_VOCAB_PATH`/`trimmed_path` preference as `clip_lookup.py`) — it does not import or modify the main pipeline's clip lookup.
+Content lives in `backend/data/quiz_data.json` — currently 5 topics (Colors, Family, Animals, Numbers, Food), 6 questions each, distractors drawn from within the same topic. `backend/services/quiz.py` resolves clip phrases through the main pipeline's cached vocab index (`clip_lookup.get_vocab`, read-only) — same trimmed/normalized resolution, parsed once and shared rather than re-read on every request.
 
 ---
 

@@ -23,7 +23,11 @@ nvidia-cublas-cu12
 nvidia-cudnn-cu12
 
 # Gloss engine (Stage 3)
-spacy==3.7.4
+# spaCy 3.7.x has NO prebuilt wheels for Python 3.13+ — pip would fall back to
+# compiling from source and fail without MSVC build tools. 3.8+ ships 3.13
+# wheels, so it is required on this project's Python 3.13. (Installed & tested
+# on 3.8.15 with the en_core_web_sm 3.8.0 model.)
+spacy>=3.8,<3.9
 # After pip install, also run: python -m spacy download en_core_web_sm
 
 # Video assembly (Stage 5)

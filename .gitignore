@@ -25,6 +25,10 @@ outputs/
 # Benchmark data — downloaded test sets (large) + result JSONs
 benchmark_data/
 
+# CISLR dataset when placed inside the repo (e.g. lab machine's .env points at
+# ./data/isl_explore/). Anchored to repo root so it never matches backend/data/.
+/data/
+
 # Temp / cache
 .cache/
 tmp/

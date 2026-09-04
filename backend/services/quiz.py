@@ -1,15 +1,18 @@
 """
 Quiz service — learning/quiz mode.
 
-Independent of the main pipeline: reads its own dummy/hardcoded question
-JSON, and resolves clip phrases against the same ISL vocab JSON the main
-pipeline uses (read-only, same env vars) so quiz clips are just the CISLR
-clips already in the project. Does not import or modify clip_lookup.py.
+Content-independent of the main pipeline: reads its own hardcoded question
+JSON. Clip phrases are resolved through the main pipeline's cached vocab
+index (clip_lookup.get_vocab — read-only, loaded and parsed once), so quiz
+clips are the same CISLR clips with the same trimmed→normalized resolution,
+without re-reading the vocab JSON on every request.
 
 Configuration:
   QUIZ_DATA_PATH — path to the quiz topics/questions JSON
                     (default: backend/data/quiz_data.json)
-  ISL_VOCAB_PATH — same vocab JSON the main pipeline uses, for clip lookup
+
+  Clip lookup uses ISL_VOCAB_PATH via clip_lookup — this module no longer
+  reads the vocab JSON itself.
 """
 from __future__ import annotations
 
@@ -18,7 +21,9 @@ import logging
 import os
 import random
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
+
+from backend.services.clip_lookup import get_vocab
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +31,6 @@ _BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root
 
 QUIZ_DATA_PATH: str = os.getenv(
     "QUIZ_DATA_PATH", str(_BASE_DIR / "backend" / "data" / "quiz_data.json")
-)
-
-ISL_VOCAB_PATH: str = os.getenv(
-    "ISL_VOCAB_PATH",
-    r"C:\Users\aksha\Desktop\asl project\data\isl_explore\isl_vocab_trimmed.json",
 )
 
 
@@ -90,28 +90,14 @@ def get_topic_questions(topic_id: str) -> Optional[List[dict]]:
 
 def resolve_clip_path(phrase: str) -> Optional[str]:
     """
-    Resolve an ISL vocab phrase to its clip file path, preferring
-    trimmed_path over normalized_path (mirrors clip_lookup.py's own
-    preference) — returns None if the phrase or file isn't found.
+    Resolve an ISL vocab phrase to its clip file path via the main pipeline's
+    cached vocab index (clip_lookup.get_vocab) — same trimmed→normalized→uid
+    resolution, parsed once and reused rather than re-read per request.
+    Returns None if the phrase isn't in the vocab or the vocab file is missing.
     """
-    vocab_path = Path(ISL_VOCAB_PATH)
-    if not vocab_path.exists():
-        logger.error("ISL vocab JSON not found at configured path: %s", vocab_path)
+    try:
+        vocab = get_vocab()
+    except FileNotFoundError:
+        logger.error("ISL vocab JSON not found — cannot resolve quiz clips.")
         return None
-
-    with vocab_path.open(encoding="utf-8") as fh:
-        raw: Dict[str, dict] = json.load(fh)
-
-    entry = raw.get(phrase.upper())
-    if entry is None:
-        return None
-
-    trimmed_path = entry.get("trimmed_path", "")
-    if trimmed_path and Path(trimmed_path).exists():
-        return trimmed_path
-
-    normalized_path = entry.get("normalized_path", "")
-    if normalized_path and Path(normalized_path).exists():
-        return normalized_path
-
-    return None
+    return vocab.get(phrase.upper())
