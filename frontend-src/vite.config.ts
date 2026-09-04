@@ -7,6 +7,9 @@ import react from '@vitejs/plugin-react'
 // needed either way — the API surface is untouched.
 export default defineConfig({
   plugins: [react()],
+  // Built asset URLs are prefixed with /static/ — that's where the FastAPI
+  // backend mounts the dist/ folder in production (see backend/main.py).
+  base: '/static/',
   server: {
     proxy: {
       '/health': 'http://localhost:8000',

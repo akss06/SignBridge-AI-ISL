@@ -11,7 +11,7 @@
 | Gloss engine | spaCy 3.8.x `en_core_web_sm`, rule-based ISL grammar only |
 | Clip dataset | CISLR v1.5 — 4,765 ISL signs, pre-normalized h264/640×480/25fps |
 | Video assembly | ffmpeg — per-clip adaptive trim + re-encode, then `-c copy` concat |
-| Frontend | Vanilla HTML / CSS / JS — no framework, no build step |
+| Frontend | React + TypeScript (Vite), built to static assets served by the backend |
 
 ## Prerequisites
 
@@ -38,11 +38,21 @@ copy .env.example .env
 
 ## Run
 
+**Backend:**
+
 ```powershell
 .\venv\Scripts\uvicorn.exe backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open http://localhost:8000
+**Frontend** — the React app must be built once so the backend can serve it:
+
+```powershell
+cd frontend-src
+npm install
+npm run build      # outputs to frontend-src/dist/, served by the backend at /
+```
+
+Then open http://localhost:8000 (visiting it before building shows a "frontend not built" page with these same instructions). Rebuild after frontend changes, or use `npm run dev` for a hot-reloading dev server that proxies the API to the backend.
 
 ## Environment variables (`.env`)
 
@@ -65,8 +75,8 @@ First request after a server (re)start downloads/loads the model — with `small
 ASR runs on CPU by default and on an NVIDIA GPU when asked — same code, ~6× faster in our benchmark (see below) at the same accuracy. A model is loaded and cached **once per device**, so the first CPU request and the first GPU request each pay a one-time load; everything after reuses the cached model.
 
 **Two ways to pick the device:**
-- **Per request** — the React frontend's **CPU / GPU toggle** (chosen before each "Convert to ISL"). Handy for benchmarking without restarts. This lives in the React app (`frontend-src/`, run with `npm run dev`), not the legacy vanilla page.
-- **Server default** — set `ASR_DEVICE=cuda` in `.env`. Applies to every request, including the vanilla page and the individual stage endpoints.
+- **Per request** — the frontend's **CPU / GPU toggle** (chosen before each "Convert to ISL"). Handy for benchmarking without restarts.
+- **Server default** — set `ASR_DEVICE=cuda` in `.env`. Applies to every request when the toggle doesn't override it.
 
 **Setup:** the required CUDA 12 libraries (cuBLAS + cuDNN 9) are declared in `requirements.txt` as `nvidia-cublas-cu12` / `nvidia-cudnn-cu12`, so `pip install -r requirements.txt` pulls them in — no CUDA Toolkit install needed. You only need a working NVIDIA driver. On Windows those pip-shipped DLLs land in a folder Windows doesn't search by default; [`asr.py`](backend/services/asr.py)'s `_register_cuda_dll_dirs()` adds that folder (to both the Python loader and `PATH`, since CTranslate2 reads `PATH`) automatically before a GPU load — so no manual `PATH` editing. If a GPU run errors with `cublas64_12.dll is not found`, it's almost always a stale server that started before those packages were installed: fully restart it.
 
@@ -101,10 +111,6 @@ SignBridge AI/
 │   ├── schemas.py               # Shared Pydantic models: GlossToken, SentenceResult, PipelineResult
 │   ├── routes/
 │   │   ├── health.py            # GET  /health
-│   │   ├── asr.py               # POST /asr/transcribe
-│   │   ├── gloss.py             # POST /gloss/generate
-│   │   ├── lookup.py            # POST /lookup/clips
-│   │   ├── assembly.py          # POST /assembly/assemble
 │   │   ├── pipeline.py          # POST /pipeline/run  ← full chain in one call
 │   │   └── quiz.py              # GET  /quiz/topics, /quiz/topics/{id}, /quiz/clips/{phrase}
 │   ├── services/
@@ -115,13 +121,15 @@ SignBridge AI/
 │   │   └── quiz.py              # Quiz topic/question loader + clip resolution (own vocab read)
 │   └── data/
 │       └── quiz_data.json       # Hardcoded quiz topics/questions (5 topics, 30 questions)
-├── frontend/
-│   ├── index.html               # Two-column layout: upload/record left, results right
-│   ├── style.css                # Dark navy + amber theme, Stage 7 polish complete
-│   ├── app.js                   # Pipeline wiring, mic recording, loading steps, results render
-│   ├── quiz.html                # Quiz mode: topic select → question card → summary
-│   ├── quiz.css                 # Quiz mode styling (same dark/amber palette)
-│   └── quiz.js                  # Quiz flow, scoring, clip replay
+├── frontend-src/                # React + TypeScript (Vite) — build with `npm run build`
+│   ├── index.html               # Pipeline page entry (upload/record → results)
+│   ├── quiz.html                # Quiz page entry
+│   ├── src/
+│   │   ├── pipeline/            # PipelineApp, FileDropZone, Recorder, ResultsView, …
+│   │   ├── quiz/               # QuizApp, TopicSelect, QuestionView, SummaryView
+│   │   ├── api/               # fetch wrappers for /pipeline, /quiz, /health
+│   │   └── styles/            # tokens + pipeline/quiz CSS (dark navy + amber)
+│   └── dist/                    # build output — served by backend at /static (gitignored)
 ├── scripts/
 │   ├── cleanup_outputs.py       # Manual sweep of old result_*.mp4 (also runs at startup)
 │   └── bench_asr.py             # ASR benchmark: WER / RTFx / VRAM — Whisper now, Parakeet-ready
@@ -165,13 +173,15 @@ Runs all stages in sequence and returns a `PipelineResult`:
 }
 ```
 
-Individual stage endpoints also exist: `/asr/transcribe`, `/gloss/generate`, `/lookup/clips`, `/assembly/assemble`.
+`/pipeline/run` is the only conversion endpoint. Each stage is a plain function in `backend/services/` (`transcribe_upload`, `text_to_gloss`, `lookup_clips`, `assemble_from_pipeline`) — call those directly for per-stage testing/benchmarking rather than over HTTP. (The earlier standalone `/asr`, `/gloss`, `/lookup`, `/assembly` routes were removed: unused by the frontend and an unnecessary way to feed arbitrary paths to ffmpeg.)
+
+Optional form field `device=cpu|cuda` selects the ASR compute device for the request (see GPU acceleration). Uploads are capped at `MAX_UPLOAD_MB` (default 50 MB) — larger files get HTTP 413.
 
 ---
 
 ## Microphone recording
 
-An alternative to file upload on the main page (`frontend/index.html`, in the same upload card, separated by an "or" divider) — not a replacement. Records a complete audio clip in the browser via `MediaRecorder`, lets you preview/replay it and re-record before submitting, then sends it through the **exact same** `/pipeline/run` call a file upload uses — no separate endpoint, no live/streaming transcription. Picking a file and finishing a recording are mutually exclusive in the UI: whichever you do most recently supersedes the other, both in what gets submitted and in what's shown on screen.
+An alternative to file upload on the main page (the upload card in `frontend-src/src/pipeline/`, separated by an "or" divider) — not a replacement. Records a complete audio clip in the browser via `MediaRecorder`, lets you preview/replay it and re-record before submitting, then sends it through the **exact same** `/pipeline/run` call a file upload uses — no separate endpoint, no live/streaming transcription. Picking a file and finishing a recording are mutually exclusive in the UI: whichever you do most recently supersedes the other, both in what gets submitted and in what's shown on screen.
 
 No backend changes were needed for this — `.webm` (what `MediaRecorder` produces in Chrome/Edge/Firefox) and `.mp4` (Safari's default) were already in `/pipeline/run`'s accepted extensions, and the existing ffmpeg audio-extraction step in `backend/services/asr.py` already handles the container/codec correctly. Verified end-to-end with a real recorded clip before wiring anything up.
 
@@ -181,7 +191,7 @@ Handles: unsupported browsers (button disabled upfront with a message), micropho
 
 ## Quiz mode
 
-A separate learning feature, fully independent of the main pipeline — reachable via the "Quiz mode →" link in the header (`http://localhost:8000/static/quiz.html`).
+A separate learning feature, fully independent of the main pipeline — reachable via the "Quiz mode →" link in the header (`http://localhost:8000/quiz.html`).
 
 Fixed, hardcoded multiple-choice quiz: pick a topic, watch a sign clip, choose the correct meaning from 4 options, get instant correct/incorrect feedback, replay the clip if needed, move to the next question, see a score summary at the end. Session-only — no persistence, no accounts.
 

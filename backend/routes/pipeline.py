@@ -14,6 +14,7 @@ POST /pipeline/run
 """
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -29,6 +30,12 @@ router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 _ALLOWED_EXTENSIONS = {".wav", ".mp3", ".mp4", ".mov", ".avi", ".mkv", ".webm"}
 _VALID_DEVICES = {"cpu", "cuda"}
+
+# Cap upload size (default 50 MB, override via MAX_UPLOAD_MB). A short speech
+# clip is well under this; the cap stops a huge upload from filling memory/disk.
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "50"))
+_MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+_CHUNK = 1024 * 1024
 
 
 @router.post("/run", response_model=PipelineResult)
@@ -64,9 +71,21 @@ async def run_pipeline(
             )
 
     # --- Stage 2: ASR ---
+    # Stream the upload to a temp file in bounded chunks, enforcing the size
+    # cap as we go — never reads the whole (possibly huge) file into memory.
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp_path = Path(tmp.name)
-        tmp.write(await file.read())
+        size = 0
+        while chunk := await file.read(_CHUNK):
+            size += len(chunk)
+            if size > _MAX_UPLOAD_BYTES:
+                tmp.close()
+                tmp_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum upload size is {MAX_UPLOAD_MB} MB.",
+                )
+            tmp.write(chunk)
 
     try:
         transcript = transcribe_upload(tmp_path, device=device)
