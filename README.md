@@ -280,6 +280,14 @@ Ordering: Time → Subject → Object → Verb → Modal → [NEG] → [WH]
 | Stale `_vocab` singleton | Module-level in `clip_lookup.py` — a wrong `ISL_VOCAB_PATH` surfaces on first request, not at startup (lazy load) |
 | `_normalize_clip()` re-encode + `-bf 0` required | Re-encoding every clip (not `-c copy`) with zero B-frames fixes a flicker at concat-demuxer boundaries — B-frame reordering leaves overlapping/non-monotonic `pts_time` at each join otherwise. Do not revert without re-verifying monotonic timestamps across a real multi-clip concat. |
 
+## Future directions
+
+| Direction | Notes |
+|---|---|
+| Subtitle (`.srt`) input for long-form video | To convert a full film/episode to ISL, feed its subtitle file rather than running ASR on the audio track. Subtitles are already clean, sentence-segmented, and timestamped — sidestepping ASR's worst failure mode (music/SFX/overlapping speech/multiple speakers) and giving sentence boundaries **and** timing for free. Timing is also the only way to sync signs to the picture. This is the right path for long video; running ASR over a whole movie is not (noisy transcript → poisoned `missing_words` backlog, unwatchable unaligned output). |
+| Synonym fallback tier | Map out-of-vocab words to an equivalent in-vocab sign (sign vocab is coarser than English). Apply as a lookup fallback (`lemma → surface → synonym → drop`), driven by an expert-validated map built from the `missing_words.json` backlog with the ISL user. Keep runtime deterministic — no live thesaurus/WordNet. |
+| Fingerspelling | Spell out words with no clip and no synonym instead of dropping them. To be built with the ISL user, using the `missing_words.json` backlog as the worklist. |
+
 ---
 
 ## Dataset paths (this machine)
