@@ -26,6 +26,7 @@ from backend.services.asr import transcribe_upload
 from backend.services.gloss import text_to_gloss
 from backend.services.clip_lookup import lookup_clips
 from backend.services.assembly import assemble_from_pipeline
+from backend.services.missing_log import record_missing
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -137,7 +138,11 @@ async def run_pipeline(
     )
     result = await asyncio.to_thread(assemble_from_pipeline, partial_result)
 
-    # Surface the words we couldn't sign (no clip found) so they can be
-    # collected for the ISL user to help with — new clips or fingerspelling.
-    result.missing_words = _collect_missing_words(result)
+    # Append the words we couldn't sign (no clip found) to the persistent
+    # backlog — a growing worklist to go through with the ISL user for new
+    # clips or fingerspelling. Not surfaced to the frontend (the gloss chips
+    # already flag dropped tokens); this is for us to work from.
+    missing = _collect_missing_words(result)
+    if missing:
+        await asyncio.to_thread(record_missing, missing)
     return result

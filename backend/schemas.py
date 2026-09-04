@@ -80,14 +80,6 @@ class PipelineResult(BaseModel):
             "Null until the assembly stage completes."
         ),
     )
-    missing_words: List[str] = Field(
-        default_factory=list,
-        description=(
-            "Distinct gloss tokens that had no matching clip and were "
-            "dropped (order preserved, deduplicated). This is the backlog of "
-            "words needing new clips or fingerspelling."
-        ),
-    )
     error: Optional[str] = Field(
         None,
         description="Human-readable error message if any stage failed.",

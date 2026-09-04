@@ -25,6 +25,10 @@ outputs/
 # Benchmark data — downloaded test sets (large) + result JSONs
 benchmark_data/
 
+# Missing-words backlog — local working state (accumulates per machine),
+# not source. Override path with MISSING_WORDS_LOG.
+missing_words.json
+
 # CISLR dataset when placed inside the repo (e.g. lab machine's .env points at
 # ./data/isl_explore/). Anchored to repo root so it never matches backend/data/.
 /data/
