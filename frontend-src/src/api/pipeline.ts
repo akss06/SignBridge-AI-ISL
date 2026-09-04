@@ -17,10 +17,13 @@ export class PipelineHttpError extends Error {
   }
 }
 
+export type AsrDevice = 'cpu' | 'cuda';
+
 /** Submits a file (picked or recorded) through the exact same endpoint either way. */
-export async function runPipeline(file: File): Promise<PipelineResult> {
+export async function runPipeline(file: File, device: AsrDevice = 'cpu'): Promise<PipelineResult> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('device', device);
 
   const res = await fetch('/pipeline/run', { method: 'POST', body: formData });
 

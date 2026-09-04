@@ -7,7 +7,7 @@
 | Layer | Technology |
 |---|---|
 | Backend | FastAPI + Uvicorn (Python 3.13) |
-| Speech-to-text | faster-whisper 1.2.1 — Whisper `small`, CPU/int8 |
+| Speech-to-text | faster-whisper 1.2.1 — Whisper `small`; CPU (int8) or NVIDIA GPU (float16), selectable per request |
 | Gloss engine | spaCy 3.8.x `en_core_web_sm`, rule-based ISL grammar only |
 | Clip dataset | CISLR v1.5 — 4,765 ISL signs, pre-normalized h264/640×480/25fps |
 | Video assembly | ffmpeg — per-clip adaptive trim + re-encode, then `-c copy` concat |
@@ -51,10 +51,44 @@ ISL_VOCAB_PATH=<abs path to isl_vocab_full.json>
 ISL_CLIPS_DIR=<abs path to cislr_normalized/>
 FFMPEG_BIN=ffmpeg          # or full path if not on PATH
 WHISPER_MODEL_SIZE=small   # tiny | base | small — small chosen for accuracy over tiny's speed
+ASR_DEVICE=cpu             # cpu (default) | cuda — server default; a request can override it (see GPU acceleration)
+ASR_COMPUTE_TYPE=          # blank = auto (int8 on cpu, float16 on cuda); set to benchmark, e.g. int8_float16
 HF_HUB_DISABLE_SYMLINKS_WARNING=1
 ```
 
 First request after a server (re)start downloads/loads the model — with `small` this takes roughly 2–3 minutes one-time (vs. near-instant for `tiny`). Every request after that is a few seconds. Send a throwaway warm-up request right after starting the server before demoing, so the cold start doesn't happen live.
+
+---
+
+## GPU acceleration (NVIDIA)
+
+ASR runs on CPU by default and on an NVIDIA GPU when asked — same code, ~6× faster in our benchmark (see below) at the same accuracy. A model is loaded and cached **once per device**, so the first CPU request and the first GPU request each pay a one-time load; everything after reuses the cached model.
+
+**Two ways to pick the device:**
+- **Per request** — the React frontend's **CPU / GPU toggle** (chosen before each "Convert to ISL"). Handy for benchmarking without restarts. This lives in the React app (`frontend-src/`, run with `npm run dev`), not the legacy vanilla page.
+- **Server default** — set `ASR_DEVICE=cuda` in `.env`. Applies to every request, including the vanilla page and the individual stage endpoints.
+
+**Setup:** the required CUDA 12 libraries (cuBLAS + cuDNN 9) are declared in `requirements.txt` as `nvidia-cublas-cu12` / `nvidia-cudnn-cu12`, so `pip install -r requirements.txt` pulls them in — no CUDA Toolkit install needed. You only need a working NVIDIA driver. On Windows those pip-shipped DLLs land in a folder Windows doesn't search by default; [`asr.py`](backend/services/asr.py)'s `_register_cuda_dll_dirs()` adds that folder (to both the Python loader and `PATH`, since CTranslate2 reads `PATH`) automatically before a GPU load — so no manual `PATH` editing. If a GPU run errors with `cublas64_12.dll is not found`, it's almost always a stale server that started before those packages were installed: fully restart it.
+
+## ASR benchmarking
+
+[`scripts/bench_asr.py`](scripts/bench_asr.py) measures the ASR stage **in isolation** (no HTTP, no video handling, no clip assembly) so the numbers are clean enough to cite. Per backend/device it reports **WER** (accuracy), **RTFx** (audio-seconds processed per wall-second — throughput), peak **VRAM**, and model **load** time. It runs a warmup pass before timing (the first CUDA call compiles kernels and would otherwise skew the first clip), and mirrors the app's decode settings.
+
+```powershell
+# Whisper small, CPU then GPU, over 100 LibriSpeech clips (auto-downloads the set)
+.\venv\Scripts\python.exe -m scripts.bench_asr
+
+.\venv\Scripts\python.exe -m scripts.bench_asr --device cuda            # GPU only
+.\venv\Scripts\python.exe -m scripts.bench_asr --limit 0                # whole test set (paper run)
+.\venv\Scripts\python.exe -m scripts.bench_asr --model large-v3         # a different Whisper size
+
+# Your own clips: a folder of audio files, each X.wav paired with X.txt holding its transcript
+.\venv\Scripts\python.exe -m scripts.bench_asr --dataset dir --data-dir path\to\my_clips
+```
+
+The standard test set (LibriSpeech test-clean, ~346 MB) **auto-downloads on first run** into `benchmark_data/` (gitignored) — no manual transfer. Result tables are also saved as JSON under `benchmark_data/results/`. Adding a second engine (e.g. NVIDIA Parakeet) is one `AsrBackend` subclass plus one line in `build_backend()`; the harness, datasets, metrics, and table code stay unchanged.
+
+> LibriSpeech test-clean is clean, read American English — the *easy* case. Numbers on accented or noisy audio (e.g. your own clips) will be higher, and that gap is itself worth reporting.
 
 ---
 
@@ -74,7 +108,7 @@ SignBridge AI/
 │   │   ├── pipeline.py          # POST /pipeline/run  ← full chain in one call
 │   │   └── quiz.py              # GET  /quiz/topics, /quiz/topics/{id}, /quiz/clips/{phrase}
 │   ├── services/
-│   │   ├── asr.py               # faster-whisper singleton + ffmpeg audio extraction
+│   │   ├── asr.py               # faster-whisper (CPU/GPU, cached per device) + ffmpeg audio extraction
 │   │   ├── gloss.py             # spaCy ISL grammar engine (rule-based)
 │   │   ├── clip_lookup.py       # CISLR vocab loader + greedy longest-match lookup
 │   │   ├── assembly.py          # per-clip adaptive trim + re-encode, then ffmpeg -c copy concat
@@ -88,7 +122,11 @@ SignBridge AI/
 │   ├── quiz.html                # Quiz mode: topic select → question card → summary
 │   ├── quiz.css                 # Quiz mode styling (same dark/amber palette)
 │   └── quiz.js                  # Quiz flow, scoring, clip replay
+├── scripts/
+│   ├── cleanup_outputs.py       # Manual sweep of old result_*.mp4 (also runs at startup)
+│   └── bench_asr.py             # ASR benchmark: WER / RTFx / VRAM — Whisper now, Parakeet-ready
 ├── trim_clips.py                # Offline utility: trim idle padding from CISLR clips
+├── benchmark_data/              # Auto-downloaded ASR test sets + result JSONs (gitignored)
 ├── outputs/                     # Generated ISL videos (gitignored)
 ├── .env                         # Local config (gitignored)
 ├── .env.example                 # Template for .env

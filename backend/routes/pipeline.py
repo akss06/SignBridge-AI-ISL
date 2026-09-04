@@ -17,7 +17,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from backend.schemas import PipelineResult
 from backend.services.asr import transcribe_upload
@@ -28,14 +28,22 @@ from backend.services.assembly import assemble_from_pipeline
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 _ALLOWED_EXTENSIONS = {".wav", ".mp3", ".mp4", ".mov", ".avi", ".mkv", ".webm"}
+_VALID_DEVICES = {"cpu", "cuda"}
 
 
 @router.post("/run", response_model=PipelineResult)
-async def run_pipeline(file: UploadFile = File(...)) -> PipelineResult:
+async def run_pipeline(
+    file: UploadFile = File(...),
+    device: str | None = Form(None),
+) -> PipelineResult:
     """
     Upload an audio (.wav, .mp3) or video (.mp4) file and run the full
     ISL generation pipeline. Returns a PipelineResult with all fields
     populated.
+
+    *device* (optional form field) selects the ASR compute device for this
+    request — "cpu" or "cuda". Omitted → server default (ASR_DEVICE). Used by
+    the frontend's CPU/GPU toggle for benchmarking.
     """
     suffix = Path(file.filename or "upload").suffix.lower()
     if suffix not in _ALLOWED_EXTENSIONS:
@@ -47,13 +55,21 @@ async def run_pipeline(file: UploadFile = File(...)) -> PipelineResult:
             ),
         )
 
+    if device is not None:
+        device = device.lower()
+        if device not in _VALID_DEVICES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unsupported device '{device}'. Accepted: cpu, cuda.",
+            )
+
     # --- Stage 2: ASR ---
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp_path = Path(tmp.name)
         tmp.write(await file.read())
 
     try:
-        transcript = transcribe_upload(tmp_path)
+        transcript = transcribe_upload(tmp_path, device=device)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=f"ASR failed: {exc}") from exc
     finally:

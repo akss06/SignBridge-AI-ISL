@@ -19,8 +19,11 @@ Output: result_<uuid>.mp4 written to the outputs/ directory.
         Returns the URL path (/outputs/result_<uuid>.mp4).
 
 Configuration:
-  FFMPEG_BIN   — ffmpeg binary (default: "ffmpeg", or set via env var)
-  OUTPUTS_DIR  — resolved from project root at import time
+  FFMPEG_BIN          — ffmpeg binary (default: "ffmpeg", or set via env var)
+  OUTPUTS_DIR         — resolved from project root at import time
+  CLIP_NORMALIZE_WORKERS — max concurrent ffmpeg normalize processes
+                           (default: min(clip count, CPU count), or set via
+                           env var)
 
 Segment normalization:
   Source clips are pre-trimmed offline by trim_clips.py (idle head/tail
@@ -48,6 +51,7 @@ import os
 import subprocess
 import tempfile
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List
 
@@ -65,6 +69,13 @@ FFMPEG_BIN: str = os.getenv("FFMPEG_BIN", "ffmpeg")
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent   # project root
 OUTPUTS_DIR: Path = _BASE_DIR / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
+
+# Cap on concurrent ffmpeg normalize processes (see _normalize_clips_parallel).
+# Unset/blank -> None, meaning "no fixed cap, just min(clip count, CPU count)".
+_CLIP_NORMALIZE_WORKERS_ENV = os.getenv("CLIP_NORMALIZE_WORKERS", "").strip()
+CLIP_NORMALIZE_WORKERS: int | None = (
+    int(_CLIP_NORMALIZE_WORKERS_ENV) if _CLIP_NORMALIZE_WORKERS_ENV else None
+)
 
 
 
@@ -123,6 +134,30 @@ def _normalize_clip(clip_path: str, tmp_dir: Path) -> str:
     if not _run(cmd, label="normalize clip"):
         raise RuntimeError(f"Failed to normalize clip for assembly: {clip_path}")
     return normalized_path
+
+
+def _normalize_clips_parallel(clip_paths: List[str], tmp_dir: Path) -> List[str]:
+    """
+    Normalize every clip in *clip_paths* concurrently instead of one ffmpeg
+    process at a time — each clip is a fully independent subprocess call
+    writing its own temp output file, so there's no reason to serialize
+    them. This is the actual expensive part of assembly (a Whisper
+    transcription or gloss-generation call is milliseconds; N sequential
+    ffmpeg process spawns for an N-token sentence is not).
+
+    Order matters for correctness: the returned list must stay in the same
+    order as *clip_paths*, since that order becomes the final concat/sign
+    sequence. ThreadPoolExecutor.map preserves input order in its results
+    regardless of which worker finishes first, so this is a safe drop-in
+    for the old sequential list comprehension, not just a faster one.
+
+    Raises RuntimeError (from the first failing _normalize_clip call) if
+    any clip fails to normalize — same failure behavior as the previous
+    sequential version.
+    """
+    max_workers = CLIP_NORMALIZE_WORKERS or min(len(clip_paths), os.cpu_count() or 4)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        return list(pool.map(lambda clip: _normalize_clip(clip, tmp_dir), clip_paths))
 
 
 def _hard_concat(clip_paths: List[str], out_path: str, tmp_dir: Path) -> bool:
@@ -190,8 +225,9 @@ def assemble_video(result: PipelineResult) -> str:
         ]
 
         # Normalize each clip's encoding parameters before concat (clips are
-        # already trimmed offline — see module docstring)
-        normalized_clips = [_normalize_clip(clip, tmp_dir) for clip in all_clips]
+        # already trimmed offline — see module docstring). Run concurrently,
+        # not one ffmpeg process at a time — see _normalize_clips_parallel.
+        normalized_clips = _normalize_clips_parallel(all_clips, tmp_dir)
 
         if len(normalized_clips) == 1:
             cmd = [FFMPEG_BIN, "-y", "-i", normalized_clips[0], "-c", "copy", output_path]

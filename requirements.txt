@@ -14,6 +14,14 @@ tokenizers>=0.21,<1
 ctranslate2>=4.0,<5
 onnxruntime>=1.14,<2
 
+# GPU (CUDA 12) support for faster-whisper. Required only to run ASR on an
+# NVIDIA GPU (ASR_DEVICE=cuda / the frontend GPU toggle); harmless but unused
+# on CPU-only machines. CTranslate2 4.x needs cuBLAS (CUDA 12) + cuDNN 9;
+# these wheels supply both. On Windows, asr.py registers their DLL directory
+# automatically so no PATH edits are needed.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
+
 # Gloss engine (Stage 3)
 spacy==3.7.4
 # After pip install, also run: python -m spacy download en_core_web_sm
@@ -22,3 +30,8 @@ spacy==3.7.4
 # ffmpeg-python is a thin subprocess wrapper; ffmpeg binary must be on PATH
 # (or set FFMPEG_BIN env var). No C compilation required.
 ffmpeg-python==0.2.0
+
+# Benchmarking (scripts/bench_asr.py) — WER metric + GPU memory sampling.
+# Only used by the benchmark harness, not the app itself.
+jiwer>=3.0
+nvidia-ml-py>=12.0

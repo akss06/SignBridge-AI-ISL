@@ -7,12 +7,15 @@ import { LoadingPanel } from './LoadingPanel';
 import { ResultsView } from './ResultsView';
 import { useRecorder } from '../hooks/useRecorder';
 import { runPipeline, PipelineHttpError } from '../api/pipeline';
+import type { AsrDevice } from '../api/pipeline';
 import type { PipelineResult } from '../types/pipeline';
 
 export function PipelineApp() {
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const recorder = useRecorder();
 
+  // ASR compute device for the next conversion — benchmarking toggle (CPU/GPU).
+  const [device, setDevice] = useState<AsrDevice>('cpu');
   const [loading, setLoading] = useState(false);
   const [requestComplete, setRequestComplete] = useState(false);
   const [result, setResult] = useState<PipelineResult | null>(null);
@@ -46,7 +49,7 @@ export function PipelineApp() {
     setHttpErrorMessage(null);
 
     try {
-      const data = await runPipeline(file);
+      const data = await runPipeline(file, device);
       setRequestComplete(true);
       setResult(data);
     } catch (err) {
@@ -98,6 +101,32 @@ export function PipelineApp() {
             </div>
 
             <Recorder recorder={recorder} disabled={loading} />
+
+            <div className="device-toggle" role="radiogroup" aria-label="Speech-to-text compute device">
+              <span className="device-toggle-label">Speech-to-text on</span>
+              <div className="device-toggle-options">
+                <button
+                  type="button"
+                  className={`device-opt ${device === 'cpu' ? 'active' : ''}`}
+                  role="radio"
+                  aria-checked={device === 'cpu'}
+                  disabled={loading}
+                  onClick={() => setDevice('cpu')}
+                >
+                  CPU
+                </button>
+                <button
+                  type="button"
+                  className={`device-opt ${device === 'cuda' ? 'active' : ''}`}
+                  role="radio"
+                  aria-checked={device === 'cuda'}
+                  disabled={loading}
+                  onClick={() => setDevice('cuda')}
+                >
+                  GPU
+                </button>
+              </div>
+            </div>
 
             <button className="btn btn-primary" disabled={submitDisabled} onClick={handleSubmit}>
               Convert to ISL

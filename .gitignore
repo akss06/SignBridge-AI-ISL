@@ -22,6 +22,9 @@ build/
 # Outputs (generated videos � large, not committed)
 outputs/
 
+# Benchmark data — downloaded test sets (large) + result JSONs
+benchmark_data/
+
 # Temp / cache
 .cache/
 tmp/
