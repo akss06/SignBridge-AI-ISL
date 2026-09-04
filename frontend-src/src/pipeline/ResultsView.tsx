@@ -113,6 +113,19 @@ export function ResultsView({ result, httpErrorMessage }: Props) {
         ))}
       </div>
 
+      {result.missing_words.length > 0 && (
+        <>
+          <div className="section-label">Words we couldn&apos;t sign yet</div>
+          <div className="missing-words" title="No clip in the CISLR dataset — candidates for new clips or fingerspelling">
+            {result.missing_words.map((word, i) => (
+              <span key={i} className="gloss-chip chip-dropped">
+                {word}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="section-label">Transcript</div>
       <div className="transcript-box">{result.transcript ?? ''}</div>
     </div>

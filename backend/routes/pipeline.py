@@ -14,6 +14,7 @@ POST /pipeline/run
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 from pathlib import Path
@@ -36,6 +37,16 @@ _VALID_DEVICES = {"cpu", "cuda"}
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "50"))
 _MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 _CHUNK = 1024 * 1024
+
+
+def _collect_missing_words(result: PipelineResult) -> list[str]:
+    """Distinct dropped gloss tokens (matched=False), order preserved."""
+    seen: dict[str, None] = {}
+    for sent in result.sentences:
+        for gt in sent.gloss_tokens:
+            if not gt.matched:
+                seen.setdefault(gt.token, None)
+    return list(seen)
 
 
 @router.post("/run", response_model=PipelineResult)
@@ -87,8 +98,11 @@ async def run_pipeline(
                 )
             tmp.write(chunk)
 
+    # ASR, gloss and assembly are blocking, CPU-bound (or subprocess) calls.
+    # Run them in a worker thread so a single conversion doesn't freeze the
+    # whole event loop (health checks, other tabs) for its full duration.
     try:
-        transcript = transcribe_upload(tmp_path, device=device)
+        transcript = await asyncio.to_thread(transcribe_upload, tmp_path, device=device)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=f"ASR failed: {exc}") from exc
     finally:
@@ -105,13 +119,13 @@ async def run_pipeline(
 
     # --- Stage 3: Gloss ---
     try:
-        sentences = text_to_gloss(transcript)
+        sentences = await asyncio.to_thread(text_to_gloss, transcript)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Gloss generation failed: {exc}") from exc
 
     # --- Stage 4: Clip lookup ---
     try:
-        sentences, coverage = lookup_clips(sentences)
+        sentences, coverage = await asyncio.to_thread(lookup_clips, sentences)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -121,4 +135,9 @@ async def run_pipeline(
         sentences=sentences,
         coverage=round(coverage, 4),
     )
-    return assemble_from_pipeline(partial_result)
+    result = await asyncio.to_thread(assemble_from_pipeline, partial_result)
+
+    # Surface the words we couldn't sign (no clip found) so they can be
+    # collected for the ISL user to help with — new clips or fingerspelling.
+    result.missing_words = _collect_missing_words(result)
+    return result

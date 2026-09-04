@@ -560,6 +560,13 @@ body {
   counter-reset: sentence;
 }
 
+.missing-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
 .gloss-sentence {
   counter-increment: sentence;
   position: relative;

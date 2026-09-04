@@ -21,6 +21,7 @@ export interface PipelineResult {
   coverage: number;
   output_video_url: string | null;
   error: string | null;
+  missing_words: string[];
 }
 
 export interface HealthResponse {
