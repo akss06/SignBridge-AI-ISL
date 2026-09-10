@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "engine": "whisper",
+    "model": "large-v3",
+    "dataset": "librispeech",
+    "limit": 100,
+    "num_clips": 100,
+    "seed": 42,
+    "timestamp": "2026-09-10T11:46:59"
+  },
+  "results": [
+    {
+      "backend": "faster-whisper:large-v3",
+      "device": "cuda",
+      "num_clips": 100,
+      "audio_seconds": 700.3,
+      "proc_seconds": 67.0,
+      "rtfx": 10.45,
+      "wer": 0.0204,
+      "load_seconds": 50.6,
+      "peak_vram_mb": 5303.0
+    }
+  ]
+}

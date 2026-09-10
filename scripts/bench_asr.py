@@ -17,8 +17,10 @@ Design notes:
     compiles kernels and would otherwise make the first clip look 10x slower.
   - Whisper decode params mirror backend/services/asr.py so numbers reflect the
     app's real behavior, not a different config.
-  - Adding Parakeet later = one new AsrBackend subclass + a line in BACKENDS.
-    The harness, datasets, metrics, and table code stay unchanged.
+  - Two engines: Whisper (faster-whisper) and Parakeet (NVIDIA NeMo). Parakeet
+    lives in a separate venv (venv-nemo) because NeMo pulls torch + a large
+    dependency tree we keep out of the app env — run its benchmark with that
+    venv's python. The harness, datasets, metrics, and table code are shared.
 
 Usage:
   python -m scripts.bench_asr                       # Whisper, CPU + GPU, LibriSpeech (100 clips)
@@ -27,6 +29,9 @@ Usage:
   python -m scripts.bench_asr --model large-v3      # a different Whisper size
   python -m scripts.bench_asr --dataset dir --data-dir path/to/my_clips
       # custom set: each audio file X.wav paired with X.txt holding its transcript
+
+  # Parakeet (from the NeMo venv):
+  .\\venv-nemo\\Scripts\\python.exe -m scripts.bench_asr --engine parakeet --device cuda
 """
 from __future__ import annotations
 
@@ -108,11 +113,65 @@ class WhisperBackend(AsrBackend):
         return text, float(info.duration)
 
 
-# Register available backends here. Parakeet becomes: "parakeet": ParakeetBackend.
+# Default Parakeet model (NVIDIA NeMo, English). Overridable via --model with
+# any NeMo ASR .nemo repo id. This is the flagship NVIDIA benchmarks vs Whisper.
+PARAKEET_DEFAULT_MODEL = "nvidia/parakeet-tdt-0.6b-v2"
+
+
+class ParakeetBackend(AsrBackend):
+    """
+    NVIDIA Parakeet (NeMo) backend. Lives in a SEPARATE venv (venv-nemo) from
+    the app — NeMo drags in torch + a large dependency tree we deliberately keep
+    out of the FastAPI app environment. Run via:
+        .\\venv-nemo\\Scripts\\python.exe -m scripts.bench_asr --engine parakeet
+
+    Loads the local cached .nemo (downloaded once via huggingface_hub) with
+    ASRModel.restore_from — no re-download, no dependency on NeMo's own model
+    registry. torch must be CUDA-enabled for the GPU run to be meaningful.
+    """
+    def __init__(self, device: str, model_id: str):
+        short = model_id.split("/")[-1]
+        self.name = f"parakeet:{short}"
+        self.device = device
+        self._model_id = model_id
+        self._model = None
+
+    def load(self) -> None:
+        from huggingface_hub import hf_hub_download
+        from nemo.collections.asr.models import ASRModel
+
+        # Resolve the cached .nemo path (instant if already downloaded).
+        nemo_file = f"{self._model_id.split('/')[-1]}.nemo"
+        local_path = hf_hub_download(repo_id=self._model_id, filename=nemo_file)
+
+        map_location = "cuda" if self.device == "cuda" else "cpu"
+        self._model = ASRModel.restore_from(local_path, map_location=map_location)
+        self._model.eval()
+
+    def transcribe(self, audio_path: Path) -> Tuple[str, float]:
+        import soundfile as sf
+
+        info = sf.info(str(audio_path))
+        duration = float(info.frames) / float(info.samplerate)
+
+        # NeMo returns a list (one entry per input). Depending on version each
+        # entry is a Hypothesis (with .text) or a plain string — handle both.
+        out = self._model.transcribe([str(audio_path)], batch_size=1, verbose=False)
+        item = out[0]
+        text = getattr(item, "text", item)
+        return str(text).strip(), duration
+
+
+# Register available backends here.
 def build_backend(engine: str, device: str, model_size: str) -> AsrBackend:
     if engine == "whisper":
         return WhisperBackend(device, model_size)
-    raise ValueError(f"Unknown engine {engine!r}. Known: whisper.")
+    if engine == "parakeet":
+        # --model defaults to "small" (a Whisper size); treat that as "use the
+        # Parakeet default", but honor an explicit NeMo repo id if given.
+        model_id = model_size if "/" in model_size else PARAKEET_DEFAULT_MODEL
+        return ParakeetBackend(device, model_id)
+    raise ValueError(f"Unknown engine {engine!r}. Known: whisper, parakeet.")
 
 
 # ---------------------------------------------------------------------------
@@ -362,8 +421,8 @@ def save_json(results: List[BenchResult], meta: dict) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="ASR benchmark (Whisper; Parakeet-ready).")
-    ap.add_argument("--engine", default="whisper", choices=["whisper"],
-                    help="ASR engine to benchmark (Parakeet to be added).")
+    ap.add_argument("--engine", default="whisper", choices=["whisper", "parakeet"],
+                    help="ASR engine to benchmark. 'parakeet' must run from venv-nemo.")
     ap.add_argument("--device", default="both", choices=["cpu", "cuda", "both"],
                     help="Device(s) to run. 'both' = CPU then GPU.")
     ap.add_argument("--model", default="small",

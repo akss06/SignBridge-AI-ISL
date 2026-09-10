@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "engine": "parakeet",
+    "model": "small",
+    "dataset": "dir",
+    "limit": 0,
+    "num_clips": 25,
+    "seed": 42,
+    "timestamp": "2026-09-10T11:59:25"
+  },
+  "results": [
+    {
+      "backend": "parakeet:parakeet-tdt-0.6b-v2",
+      "device": "cuda",
+      "num_clips": 25,
+      "audio_seconds": 177.8,
+      "proc_seconds": 2.0,
+      "rtfx": 88.92,
+      "wer": 0.1205,
+      "load_seconds": 25.9,
+      "peak_vram_mb": 5875.0
+    }
+  ]
+}

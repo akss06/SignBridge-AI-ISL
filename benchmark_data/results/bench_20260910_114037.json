@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "engine": "parakeet",
+    "model": "small",
+    "dataset": "librispeech",
+    "limit": 100,
+    "num_clips": 100,
+    "seed": 42,
+    "timestamp": "2026-09-10T11:40:37"
+  },
+  "results": [
+    {
+      "backend": "parakeet:parakeet-tdt-0.6b-v2",
+      "device": "cpu",
+      "num_clips": 100,
+      "audio_seconds": 700.3,
+      "proc_seconds": 51.7,
+      "rtfx": 13.53,
+      "wer": 0.0183,
+      "load_seconds": 25.3,
+      "peak_vram_mb": null
+    },
+    {
+      "backend": "parakeet:parakeet-tdt-0.6b-v2",
+      "device": "cuda",
+      "num_clips": 100,
+      "audio_seconds": 700.3,
+      "proc_seconds": 7.8,
+      "rtfx": 89.66,
+      "wer": 0.0183,
+      "load_seconds": 12.4,
+      "peak_vram_mb": 5813.0
+    }
+  ]
+}

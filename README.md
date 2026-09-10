@@ -100,6 +100,48 @@ The standard test set (LibriSpeech test-clean, ~346 MB) **auto-downloads on firs
 
 > LibriSpeech test-clean is clean, read American English — the *easy* case. Numbers on accented or noisy audio (e.g. your own clips) will be higher, and that gap is itself worth reporting.
 
+### Results
+
+100 LibriSpeech test-clean clips (seed 42), on an **NVIDIA RTX 2000 Ada (16 GB, driver 595.71)**, 2026-09-10:
+
+| Backend | Params | Device | RTFx | WER | Proc time | VRAM | Load |
+|---|---|---|---|---|---|---|---|
+| faster-whisper:small | 244M | CPU | 4.48× | 3.34% | 156.3 s | — | 4.6 s |
+| faster-whisper:small | 244M | CUDA | 29.71× | 3.45% | 23.6 s | 1706 MB | 1.4 s |
+| faster-whisper:large-v3 | 1.55B | CUDA | 10.45× | 2.04% | 67.0 s | 5303 MB | 50.6 s |
+| parakeet-tdt-0.6b-v2 | 600M | CPU | 13.53× | 1.83% | 51.7 s | — | 25.3 s |
+| parakeet-tdt-0.6b-v2 | 600M | CUDA | 89.66× | 1.83% | 7.8 s | 5813 MB | 12.4 s |
+
+**Whisper, CPU vs GPU:** GPU is ~6.6× faster at the same accuracy — the 3.34% vs 3.45% WER wobble is just `int8` (CPU) vs `float16` (GPU) quantization. VRAM is tiny (1.7 GB of 16).
+
+**Parakeet vs Whisper (GPU):** Parakeet wins on both speed and accuracy against *every* Whisper size tested. Versus `small` it's ~3× faster at half the WER; versus `large-v3` — Whisper's best, and 2.5× *larger* than Parakeet — it's **~8.6× faster (89.7× vs 10.5×) and still more accurate (1.83% vs 2.04%)**, at comparable VRAM (5.8 vs 5.3 GB). Scaling Whisper up narrows the accuracy gap but doesn't close it. Notably, Whisper `large-v3` on GPU (10.5×) is slower than Parakeet on *CPU* (13.5×). The size mismatch favors the *loser* here — Parakeet is the smaller model.
+
+**Caveats (for the paper):**
+- LibriSpeech test-clean is clean, read *American* English — the easy case. SignBridge's users speak *Indian-accented* English, and Parakeet is trained heavily on US English, so its lead may narrow or change there (it does — see below).
+- Parakeet is English-only; Whisper is multilingual (irrelevant for this English→ISL pipeline, relevant only if scope widens).
+
+### Indian-accented English — the result flips
+
+25 clips of Indian-accented English (from [`Gbssreejith/indian-english-voice`](https://huggingface.co/datasets/Gbssreejith/indian-english-voice)) — everyday e-commerce/banking queries and spontaneous speech — on GPU:
+
+| Engine (GPU) | WER (US, LibriSpeech) | WER (Indian English) | RTFx (Indian) |
+|---|---|---|---|
+| Whisper small | 3.45% | **14.62%** | 36.81× |
+| Parakeet 0.6B | 1.83% | **25.90%** | 88.92× |
+
+**The accuracy ranking reverses.** On clean US English Parakeet is ~2× *more* accurate than Whisper small; on Indian-accented English it's ~1.8× *less* accurate (25.9% vs 14.6%). Parakeet stays ~2.4× faster throughout — speed was never the question, accuracy is.
+
+**Where Parakeet loses (from per-clip inspection), and where it doesn't:**
+- It handles the *accent itself* fine on connected speech — on a long spontaneous clip its transcript is as good as Whisper's.
+- It mangles **Indian proper nouns / brand names** far worse: `PayTm → "Petium"`, `Grameena → "Grammy"`, `Anveshan → "Annivasion"` (Whisper got PayTm exactly right and stayed closer on the rest).
+- It transcribes **disfluencies** ("uh") that the clean references (and Whisper) omit, adding word errors on spontaneous speech.
+
+So the gap is driven by Indian named-entity familiarity and verbatim transcription style more than raw acoustic accent-robustness — a more precise story than "Parakeet can't do Indian English."
+
+**Caveats:** n = 25 is a small, noisy sample; some references contain typos (penalizes both engines equally); single dataset/domain. A larger held-out Indian-English set is needed before this is a firm claim — but the direction is clear and it's decision-relevant: **for SignBridge's actual users, Whisper small is currently the safer accuracy choice despite Parakeet's leaderboard dominance.**
+
+> Parakeet (NVIDIA NeMo) runs in a separate `venv-nemo` to keep its heavy dependency tree (torch, etc.) out of the app environment. Run its benchmark with `.\venv-nemo\Scripts\python.exe -m scripts.bench_asr --engine parakeet --device both`.
+
 ---
 
 ## Project structure

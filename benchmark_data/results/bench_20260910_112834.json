@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "engine": "whisper",
+    "model": "small",
+    "dataset": "librispeech",
+    "limit": 100,
+    "num_clips": 100,
+    "seed": 42,
+    "timestamp": "2026-09-10T11:28:34"
+  },
+  "results": [
+    {
+      "backend": "faster-whisper:small",
+      "device": "cpu",
+      "num_clips": 100,
+      "audio_seconds": 700.3,
+      "proc_seconds": 156.3,
+      "rtfx": 4.48,
+      "wer": 0.0334,
+      "load_seconds": 4.6,
+      "peak_vram_mb": null
+    },
+    {
+      "backend": "faster-whisper:small",
+      "device": "cuda",
+      "num_clips": 100,
+      "audio_seconds": 700.3,
+      "proc_seconds": 23.6,
+      "rtfx": 29.71,
+      "wer": 0.0345,
+      "load_seconds": 1.4,
+      "peak_vram_mb": 1706.0
+    }
+  ]
+}

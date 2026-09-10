@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "engine": "whisper",
+    "model": "small",
+    "dataset": "dir",
+    "limit": 0,
+    "num_clips": 25,
+    "seed": 42,
+    "timestamp": "2026-09-10T11:58:44"
+  },
+  "results": [
+    {
+      "backend": "faster-whisper:small",
+      "device": "cuda",
+      "num_clips": 25,
+      "audio_seconds": 177.8,
+      "proc_seconds": 4.8,
+      "rtfx": 36.81,
+      "wer": 0.1462,
+      "load_seconds": 2.0,
+      "peak_vram_mb": 1753.0
+    }
+  ]
+}
